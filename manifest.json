@@ -1,0 +1,47 @@
+{
+  "name": "内观日志 — 体重波动因果健康分析仪",
+  "short_name": "内观日志",
+  "description": "内向者的自我内探工具：记录身体与心理状态，发现体重波动的因果规律，提前调整行为与情绪。",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0f1117",
+  "theme_color": "#7c5cfc",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["health", "lifestyle", "productivity"],
+  "shortcuts": [
+    {
+      "name": "今日记录",
+      "short_name": "记录",
+      "description": "快速进入今日记录页面",
+      "url": "./index.html#record"
+    },
+    {
+      "name": "洞察分析",
+      "short_name": "洞察",
+      "description": "查看相关性分析",
+      "url": "./index.html#insights"
+    }
+  ]
+}

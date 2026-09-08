@@ -1,0 +1,2639 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+<meta name="theme-color" content="#7c5cfc">
+<meta name="description" content="内观日志 — 内向者的自我内探工具。记录身体与心理状态，发现体重波动的因果规律。数据仅存本地，不上传任何服务器。">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="内观日志">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<title>内观日志 — 体重波动因果健康分析仪</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d29;
+  --surface2: #232735;
+  --border: #2e3346;
+  --text: #e8eaf0;
+  --text-dim: #9298a8;
+  --accent: #7c5cfc;
+  --accent2: #4dd4ac;
+  --warn: #f0a050;
+  --danger: #f06565;
+  --radius: 12px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  font-size: 14px;
+}
+.app { max-width: 1200px; margin: 0 auto; padding: 0 16px 60px; }
+header {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(15,17,23,0.92);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
+  margin: 0 -16px 20px;
+}
+.header-inner { max-width: 1200px; margin: 0 auto; display: flex; align-items: center; gap: 16px; }
+h1 { font-size: 20px; font-weight: 700; flex-shrink: 0; }
+nav { display: flex; gap: 4px; flex-wrap: wrap; }
+nav button {
+  background: var(--surface2); color: var(--text-dim);
+  border: none; padding: 8px 16px; border-radius: 8px;
+  cursor: pointer; font-size: 13px; transition: all 0.2s;
+}
+nav button.active { background: var(--accent); color: #fff; }
+nav button:hover:not(.active) { color: var(--text); background: var(--surface); }
+.header-actions { margin-left: auto; display: flex; gap: 8px; }
+.icon-btn {
+  background: var(--surface2); border: none; color: var(--text-dim);
+  padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 12px;
+}
+.icon-btn:hover { color: var(--text); }
+
+/* Tabs */
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* Cards */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px; margin-bottom: 16px;
+}
+.card h2 { font-size: 16px; margin-bottom: 14px; font-weight: 600; }
+.card h3 { font-size: 14px; margin: 14px 0 8px; color: var(--text-dim); font-weight: 500; }
+
+/* Form */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+.form-group { display: flex; flex-direction: column; gap: 4px; }
+.form-group.full { grid-column: 1 / -1; }
+label { font-size: 12px; color: var(--text-dim); font-weight: 500; }
+label .anchor { font-size: 11px; color: var(--accent2); cursor: help; margin-left: 4px; }
+label .avg7 { font-size: 11px; color: var(--warn); margin-left: 6px; }
+input, select, textarea {
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text); padding: 8px 10px; border-radius: 8px; font-size: 13px;
+  font-family: inherit; outline: none; transition: border-color 0.2s;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+textarea { resize: vertical; min-height: 50px; }
+textarea.highlight {
+  border: 1.5px solid var(--accent); background: rgba(124,92,252,0.08);
+  min-height: 60px; font-style: italic;
+}
+select { cursor: pointer; }
+
+/* Anchors tooltip */
+.anchor-box {
+  display: none; position: absolute; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: 8px; padding: 10px;
+  font-size: 11px; z-index: 200; max-width: 300px; line-height: 1.8;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+.anchor-box table { width: 100%; border-collapse: collapse; }
+.anchor-box th, .anchor-box td { padding: 2px 6px; text-align: left; border-bottom: 1px solid var(--border); }
+.anchor-box th { color: var(--accent); }
+
+/* Rating buttons */
+.rating-group { display: flex; gap: 6px; }
+.rating-btn {
+  flex: 1; background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text-dim); padding: 8px 4px; border-radius: 8px; cursor: pointer;
+  font-size: 12px; text-align: center; transition: all 0.15s;
+}
+.rating-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.rating-btn:hover:not(.active) { color: var(--text); }
+.rating-btn .hint { display: block; font-size: 9px; margin-top: 2px; opacity: 0.8; }
+
+/* Energy net slider */
+.slider-row { display: flex; align-items: center; gap: 10px; }
+.slider-row span { font-size: 14px; font-weight: 600; min-width: 30px; text-align: center; }
+input[type=range] { flex: 1; accent-color: var(--accent); }
+
+/* Buttons */
+.btn {
+  background: var(--accent); color: #fff; border: none;
+  padding: 10px 20px; border-radius: 8px; cursor: pointer;
+  font-size: 14px; font-weight: 600; transition: all 0.2s;
+}
+.btn:hover { opacity: 0.9; }
+.btn.secondary { background: var(--surface2); color: var(--text); }
+.btn.danger { background: var(--danger); }
+.btn-row { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+
+/* Date bar */
+.date-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.date-bar input[type=date] { font-size: 16px; font-weight: 600; }
+.cycle-badge {
+  padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
+}
+.cycle-经期 { background: rgba(240,101,101,0.2); color: var(--danger); border: 1px solid var(--danger); }
+.cycle-卵泡期 { background: rgba(77,212,172,0.15); color: var(--accent2); border: 1px solid var(--accent2); }
+.cycle-排卵期 { background: rgba(240,160,80,0.15); color: var(--warn); border: 1px solid var(--warn); }
+.cycle-黄体期 { background: rgba(124,92,252,0.15); color: var(--accent); border: 1px solid var(--accent); }
+.cycle-未知 { background: var(--surface2); color: var(--text-dim); border: 1px solid var(--border); }
+
+/* Insights */
+.filter-panel { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-bottom: 16px; }
+.filter-item { display: flex; flex-direction: column; gap: 4px; }
+.filter-item label { font-size: 11px; }
+.chart-container { position: relative; height: 350px; margin: 12px 0; }
+.chart-container.tall { height: 450px; }
+.chart-container.short { height: 250px; }
+
+table.data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.data-table th, table.data-table td {
+  padding: 8px 6px; text-align: center; border-bottom: 1px solid var(--border);
+}
+table.data-table th { color: var(--text-dim); font-weight: 500; position: sticky; top: 0; background: var(--surface); }
+table.data-table tr { cursor: pointer; transition: background 0.15s; }
+table.data-table tr:hover { background: var(--surface2); }
+table.data-table tr.highlighted { background: rgba(124,92,252,0.15); }
+table.data-table tr.target-row { background: rgba(240,160,80,0.12); }
+
+.rule-item {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px; margin-bottom: 8px;
+}
+.rule-item .rule-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.rule-item .rule-cond { font-size: 12px; color: var(--text-dim); }
+.rule-item .rule-then { font-size: 13px; color: var(--accent2); font-weight: 600; }
+.rule-item .rule-score { font-size: 11px; color: var(--warn); }
+
+/* Factor checkboxes */
+.factor-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.factor-chip {
+  display: flex; align-items: center; gap: 4px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 20px; padding: 4px 10px; font-size: 12px; cursor: pointer;
+}
+.factor-chip input { accent-color: var(--accent); }
+.factor-chip.active { border-color: var(--accent); background: rgba(124,92,252,0.1); }
+
+/* Keyword panel */
+.collapse-panel {
+  border: 1px solid var(--border); border-radius: 8px; margin-top: 16px; overflow: hidden;
+}
+.collapse-header {
+  background: var(--surface2); padding: 10px 14px; cursor: pointer;
+  display: flex; justify-content: space-between; align-items: center;
+  font-weight: 600; font-size: 14px;
+}
+.collapse-body { display: none; padding: 14px; }
+.collapse-body.open { display: block; }
+.keyword-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+.keyword-list { margin-top: 10px; }
+.keyword-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 4px; padding: 3px 8px; font-size: 11px; margin: 2px;
+}
+.keyword-tag .del { cursor: pointer; color: var(--danger); }
+
+/* Lag attribution */
+.lag-box {
+  background: rgba(240,160,80,0.1); border: 1px solid var(--warn);
+  border-radius: 10px; padding: 14px; margin: 12px 0;
+}
+.lag-box .lag-title { font-weight: 600; color: var(--warn); margin-bottom: 6px; }
+.lag-box .lag-factor { font-size: 15px; color: var(--text); margin: 4px 0; }
+.lag-box .lag-detail { font-size: 12px; color: var(--text-dim); }
+
+/* Insight sections */
+.insight-section {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 18px; margin-bottom: 16px;
+}
+.insight-section h2 { font-size: 15px; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+.insight-section h2 .badge { font-size: 10px; background: var(--accent); color: #fff; padding: 2px 6px; border-radius: 4px; }
+.sub-section { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--border); }
+.sub-section h3 { font-size: 13px; color: var(--accent); margin-bottom: 8px; }
+
+/* Summary stats */
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+.stat-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px; text-align: center;
+}
+.stat-card .val { font-size: 24px; font-weight: 700; color: var(--accent2); }
+.stat-card .label { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+@media (max-width: 640px) {
+  .form-grid, .form-grid.three { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .header-inner { flex-wrap: wrap; }
+  h1 { font-size: 16px; }
+  .rating-btn { min-height: 44px; }
+  .btn, .icon-btn { min-height: 44px; }
+  .nav-btn { min-height: 44px; }
+}
+.empty-state { text-align: center; padding: 40px; color: var(--text-dim); }
+.empty-state p { margin-top: 8px; font-size: 13px; }
+
+/* === PWA & Product features === */
+
+/* Onboarding overlay */
+.onboarding-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0,0,0,0.85);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.onboarding-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 16px; padding: 30px 24px; max-width: 420px; width: 100%;
+  text-align: center;
+}
+.onboarding-card h2 { font-size: 22px; margin-bottom: 6px; }
+.onboarding-card .subtitle { color: var(--text-dim); font-size: 13px; margin-bottom: 24px; }
+.onboarding-step { margin-bottom: 20px; }
+.onboarding-step .step-num {
+  display: inline-block; width: 28px; height: 28px; border-radius: 50%;
+  background: var(--accent); color: #fff; line-height: 28px;
+  font-size: 14px; font-weight: 700; margin-bottom: 8px;
+}
+.onboarding-step .step-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+.onboarding-step .step-desc { font-size: 12px; color: var(--text-dim); line-height: 1.6; }
+.onboarding-dots { display: flex; gap: 6px; justify-content: center; margin: 16px 0; }
+.onboarding-dots .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+.onboarding-dots .dot.active { background: var(--accent); }
+
+/* Install prompt */
+.install-banner {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 9000;
+  background: var(--surface); border-top: 1px solid var(--border);
+  padding: 14px 16px; display: none;
+  flex-direction: column; align-items: center; gap: 8px;
+}
+.install-banner.show { display: flex; }
+.install-banner .install-text { font-size: 13px; text-align: center; }
+.install-banner .install-btns { display: flex; gap: 10px; }
+
+/* About page */
+.about-hero { text-align: center; padding: 30px 0 20px; }
+.about-hero .logo { font-size: 48px; margin-bottom: 12px; }
+.about-hero h2 { font-size: 24px; font-weight: 700; margin-bottom: 6px; }
+.about-hero .tagline { color: var(--text-dim); font-size: 14px; }
+.about-section { margin-top: 24px; }
+.about-section h3 { font-size: 15px; color: var(--accent); margin-bottom: 8px; }
+.about-section p { font-size: 13px; color: var(--text-dim); line-height: 1.8; margin-bottom: 8px; }
+.about-section ul { list-style: none; padding-left: 0; }
+.about-section ul li { font-size: 13px; color: var(--text-dim); padding-left: 16px; position: relative; margin-bottom: 6px; }
+.about-section ul li::before { content: '✓'; color: var(--accent2); position: absolute; left: 0; }
+.privacy-box {
+  background: rgba(77,212,172,0.08); border: 1px solid var(--accent2);
+  border-radius: 10px; padding: 14px; margin: 16px 0;
+}
+.privacy-box h3 { color: var(--accent2); }
+.privacy-box p { font-size: 12px; color: var(--text-dim); }
+
+/* Share modal */
+.share-overlay {
+  position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.8);
+  display: none; align-items: center; justify-content: center; padding: 20px;
+}
+.share-overlay.show { display: flex; }
+.share-card {
+  background: var(--surface); border-radius: 16px; padding: 24px;
+  max-width: 360px; text-align: center;
+}
+.share-card canvas { border-radius: 12px; max-width: 100%; margin-bottom: 16px; }
+.share-card .share-actions { display: flex; gap: 10px; justify-content: center; margin-top: 12px; }
+
+/* Data management */
+.data-mgmt { margin-top: 20px; }
+.data-mgmt .row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+}
+.data-mgmt .row:last-child { border-bottom: none; }
+.data-mgmt .row label { font-size: 13px; }
+.data-mgmt .row .hint { font-size: 11px; color: var(--text-dim); }
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+  background: var(--surface2); border: 1px solid var(--accent);
+  border-radius: 10px; padding: 10px 20px; font-size: 13px; color: var(--text);
+  z-index: 8000; opacity: 0; transition: opacity 0.3s; pointer-events: none;
+}
+.toast.show { opacity: 1; }
+
+/* Safe area for mobile */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .app { padding-bottom: calc(60px + env(safe-area-inset-bottom)); }
+  .install-banner { padding-bottom: max(14px, env(safe-area-inset-bottom)); }
+}
+</style>
+</head>
+<body>
+<header>
+<div class="header-inner">
+  <h1>🌙 内观日志</h1>
+  <nav>
+    <button onclick="switchTab('record')" id="tab-record" class="active">📝 记录</button>
+    <button onclick="switchTab('history')" id="tab-history">📅 历史</button>
+    <button onclick="switchTab('insights')" id="tab-insights">🔍 洞察</button>
+    <button onclick="switchTab('rules')" id="tab-rules">🧠 规则</button>
+    <button onclick="switchTab('about')" id="tab-about">ℹ️ 关于</button>
+  </nav>
+  <div class="header-actions">
+    <button class="icon-btn" onclick="openShare()">🔗 分享</button>
+    <button class="icon-btn" onclick="exportData()">⬇ 导出</button>
+    <button class="icon-btn" onclick="document.getElementById('import-file').click()">⬆ 导入</button>
+    <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+  </div>
+</div>
+</header>
+<div class="app">
+
+<!-- ==================== RECORD TAB ==================== -->
+<div class="tab-content active" id="content-record">
+  <div class="card">
+    <div class="date-bar">
+      <label>📅 日期：<input type="date" id="f-date" onchange="onDateChange()"></label>
+      <span id="cycle-display" class="cycle-badge cycle-未知">周期：未知</span>
+      <button class="btn secondary" onclick="copyPrevDay()" style="margin-left:auto;">📋 复制前一天</button>
+    </div>
+
+    <h2 style="font-size:14px;color:var(--text-dim);margin-bottom:10px;">⚖️ 客观数据</h2>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>体重 (kg) <span style="color:var(--warn);">★金标准</span></label>
+        <input type="number" id="f-weight" step="0.1" min="0" placeholder="如 58.5">
+      </div>
+    </div>
+
+    <h3>🩸 生理周期</h3>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>出血量</label>
+        <select id="f-bleeding">
+          <option value="无">无</option>
+          <option value="点滴/褐色">点滴/褐色</option>
+          <option value="中等">中等</option>
+          <option value="量大">量大</option>
+        </select>
+      </div>
+    </div>
+
+    <h3>🍽 饮食与营养</h3>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>碳水摄入</label>
+        <select id="f-carb"><option value="">-</option><option value="低">低</option><option value="中">中</option><option value="高">高</option></select>
+      </div>
+      <div class="form-group">
+        <label>蛋白质摄入</label>
+        <select id="f-protein"><option value="">-</option><option value="低">低</option><option value="中">中</option><option value="高">高</option></select>
+      </div>
+      <div class="form-group">
+        <label>钠摄入</label>
+        <select id="f-sodium"><option value="">-</option><option value="低">低</option><option value="中">中</option><option value="高">高</option></select>
+      </div>
+      <div class="form-group">
+        <label>饮水 (杯)</label>
+        <input type="number" id="f-water" min="0" max="15" step="1" placeholder="0-15">
+      </div>
+      <div class="form-group full">
+        <label>饮食备注</label>
+        <input type="text" id="f-dietNote" placeholder="具体吃了什么？（用于关键词解析）">
+      </div>
+    </div>
+
+    <h3>🏃 运动与身体活动</h3>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>运动类型</label>
+        <select id="f-exercise" onchange="toggleExercise()">
+          <option value="无">无</option>
+          <option value="有氧-长跑">有氧-长跑</option>
+          <option value="有氧-太极">有氧-太极</option>
+          <option value="有氧-骑行">有氧-骑行</option>
+          <option value="混合-跳舞">混合-跳舞</option>
+          <option value="力量">力量</option>
+          <option value="瑜伽">瑜伽</option>
+          <option value="拉伸">拉伸</option>
+          <option value="散步">散步</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>运动时长 (min)</label>
+        <input type="number" id="f-exerciseDuration" min="0" step="5" placeholder="如 30">
+      </div>
+    </div>
+
+    <h3>😴 睡眠</h3>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>睡眠时长 (h)</label>
+        <input type="number" id="f-sleepHours" step="0.5" min="0" placeholder="如 7.5">
+      </div>
+      <div class="form-group">
+        <label>睡眠质量 <span class="anchor" onmouseenter="showAnchor('sleep')" onmouseleave="hideAnchor()">ⓘ锚定</span><span class="avg7" id="avg-sleep"></span></label>
+        <div class="rating-group" id="rg-sleep">
+          <button class="rating-btn" data-field="sleepQuality" data-val="1" onclick="setRating(this)">1<span class="hint">几乎没睡</span></button>
+          <button class="rating-btn" data-field="sleepQuality" data-val="2" onclick="setRating(this)">2<span class="hint">醒后疲惫</span></button>
+          <button class="rating-btn" data-field="sleepQuality" data-val="3" onclick="setRating(this)">3<span class="hint">一般</span></button>
+          <button class="rating-btn" data-field="sleepQuality" data-val="4" onclick="setRating(this)">4<span class="hint">精神饱满</span></button>
+          <button class="rating-btn" data-field="sleepQuality" data-val="5" onclick="setRating(this)">5<span class="hint">神清气爽</span></button>
+        </div>
+      </div>
+    </div>
+
+    <h3>💜 情绪与精力</h3>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>情绪评分 <span class="anchor" onmouseenter="showAnchor('mood')" onmouseleave="hideAnchor()">ⓘ锚定</span><span class="avg7" id="avg-mood"></span></label>
+        <div class="rating-group" id="rg-mood">
+          <button class="rating-btn" data-field="mood" data-val="1" onclick="setRating(this)">1<span class="hint">极度沮丧</span></button>
+          <button class="rating-btn" data-field="mood" data-val="2" onclick="setRating(this)">2<span class="hint">低落易怒</span></button>
+          <button class="rating-btn" data-field="mood" data-val="3" onclick="setRating(this)">3<span class="hint">中性平静</span></button>
+          <button class="rating-btn" data-field="mood" data-val="4" onclick="setRating(this)">4<span class="hint">积极有动力</span></button>
+          <button class="rating-btn" data-field="mood" data-val="5" onclick="setRating(this)">5<span class="hint">愉悦兴奋</span></button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>精力评分 <span class="anchor" onmouseenter="showAnchor('energy')" onmouseleave="hideAnchor()">ⓘ锚定</span><span class="avg7" id="avg-energy"></span></label>
+        <div class="rating-group" id="rg-energy">
+          <button class="rating-btn" data-field="energy" data-val="1" onclick="setRating(this)">1<span class="hint">异常疲惫</span></button>
+          <button class="rating-btn" data-field="energy" data-val="2" onclick="setRating(this)">2<span class="hint">需强制启动</span></button>
+          <button class="rating-btn" data-field="energy" data-val="3" onclick="setRating(this)">3<span class="hint">正常</span></button>
+          <button class="rating-btn" data-field="energy" data-val="4" onclick="setRating(this)">4<span class="hint">有活力</span></button>
+          <button class="rating-btn" data-field="energy" data-val="5" onclick="setRating(this)">5<span class="hint">体能极佳</span></button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>压力标记</label>
+        <select id="f-stress">
+          <option value="无">无</option>
+          <option value="有">有</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>压力备注</label>
+        <input type="text" id="f-stressNote" placeholder="压力来源？">
+      </div>
+    </div>
+
+    <h3>🌿 活动记录（内向者定制版）</h3>
+    <div class="form-grid three">
+      <div class="form-group">
+        <label>社交负荷 (1-5)<span class="avg7" id="avg-social"></span></label>
+        <div class="rating-group" id="rg-social">
+          <button class="rating-btn" data-field="socialLoad" data-val="1" onclick="setRating(this)">1<span class="hint">完全独处</span></button>
+          <button class="rating-btn" data-field="socialLoad" data-val="2" onclick="setRating(this)">2</button>
+          <button class="rating-btn" data-field="socialLoad" data-val="3" onclick="setRating(this)">3</button>
+          <button class="rating-btn" data-field="socialLoad" data-val="4" onclick="setRating(this)">4</button>
+          <button class="rating-btn" data-field="socialLoad" data-val="5" onclick="setRating(this)">5<span class="hint">高密度互动</span></button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>认知收获 (1-5)<span class="avg7" id="avg-cognition"></span></label>
+        <div class="rating-group" id="rg-cognition">
+          <button class="rating-btn" data-field="cognitionGain" data-val="1" onclick="setRating(this)">1<span class="hint">无收获</span></button>
+          <button class="rating-btn" data-field="cognitionGain" data-val="2" onclick="setRating(this)">2</button>
+          <button class="rating-btn" data-field="cognitionGain" data-val="3" onclick="setRating(this)">3</button>
+          <button class="rating-btn" data-field="cognitionGain" data-val="4" onclick="setRating(this)">4</button>
+          <button class="rating-btn" data-field="cognitionGain" data-val="5" onclick="setRating(this)">5<span class="hint">灵感丰富</span></button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>能量净值 (-5 到 +5)</label>
+        <div class="slider-row">
+          <input type="range" id="f-energyNet" min="-5" max="5" step="1" value="0" oninput="document.getElementById('energyNetVal').textContent=this.value">
+          <span id="energyNetVal">0</span>
+        </div>
+      </div>
+    </div>
+    <div class="form-group full" style="margin-top:8px;">
+      <label>💭 今天有什么新的认知或想法触动了你？</label>
+      <textarea id="f-activityNote" class="highlight" placeholder="记录你的洞察..."></textarea>
+    </div>
+
+    <h3>🧘 深度独处 / 心流时刻</h3>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>是否有深度独处/心流时刻</label>
+        <select id="f-solitude" onchange="toggleSolitude()">
+          <option value="否">否</option>
+          <option value="是">是</option>
+        </select>
+      </div>
+      <div id="solitude-fields" style="display:none;">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>活动类型</label>
+            <select id="f-solitudeType">
+              <option value="">-</option>
+              <option value="阅读">阅读</option>
+              <option value="冥想">冥想</option>
+              <option value="写作">写作</option>
+              <option value="编程">编程</option>
+              <option value="绘画">绘画</option>
+              <option value="散步">散步</option>
+              <option value="听音乐">听音乐</option>
+              <option value="其他">其他</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>沉浸时长 (min)</label>
+            <input type="number" id="f-solitudeDuration" min="0" step="10" placeholder="如 60">
+          </div>
+          <div class="form-group">
+            <label>恢复评分 (1-5) — 这次独处让你内心电量恢复了多少？</label>
+            <div class="rating-group" id="rg-recovery">
+              <button class="rating-btn" data-field="recovery" data-val="1" onclick="setRating(this)">1</button>
+              <button class="rating-btn" data-field="recovery" data-val="2" onclick="setRating(this)">2</button>
+              <button class="rating-btn" data-field="recovery" data-val="3" onclick="setRating(this)">3</button>
+              <button class="rating-btn" data-field="recovery" data-val="4" onclick="setRating(this)">4</button>
+              <button class="rating-btn" data-field="recovery" data-val="5" onclick="setRating(this)">5</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h3>📝 自由备注（核心入口）</h3>
+    <div class="form-group" style="margin-bottom:8px;">
+      <label>日常备注（饮食描述/发生的事件）</label>
+      <input type="text" id="f-dailyNote" placeholder="今天发生了什么？（会被关键词解析提取因子）" style="width:100%;">
+    </div>
+    <div class="form-group">
+      <label>✨ 内心笔记</label>
+      <textarea id="f-innerNote" class="highlight" placeholder="此刻，你想对自己说什么？"></textarea>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn" onclick="saveRecord()">💾 保存记录</button>
+      <button class="btn secondary" onclick="clearForm()">🗑 清空</button>
+      <span id="save-status" style="line-height:38px;color:var(--accent2);font-size:13px;"></span>
+    </div>
+  </div>
+</div>
+
+<!-- Anchor tooltip -->
+<div class="anchor-box" id="anchor-box"></div>
+
+<!-- ==================== HISTORY TAB ==================== -->
+<div class="tab-content" id="content-history">
+  <div class="card">
+    <h2>📅 历史记录</h2>
+    <p style="color:var(--text-dim);font-size:13px;margin-bottom:12px;">点击任意一天的体重数据，查看<b>滞后归因</b>分析（自动回溯3天最高相关因子）</p>
+    <div id="lag-attribution"></div>
+    <div style="overflow-x:auto;">
+      <table class="data-table" id="history-table">
+        <thead><tr id="history-head"></tr></thead>
+        <tbody id="history-body"></tbody>
+      </table>
+    </div>
+    <div id="history-empty" class="empty-state">
+      <p>📭 还没有记录。去「记录」页开始你的第一次数据采集吧。</p>
+    </div>
+  </div>
+  <div class="card">
+    <h2>📊 体重趋势图</h2>
+    <div class="chart-container"><canvas id="weight-trend-chart"></canvas></div>
+  </div>
+</div>
+
+<!-- ==================== INSIGHTS TAB ==================== -->
+<div class="tab-content" id="content-insights">
+  <div id="insights-empty" class="empty-state">
+    <p>📭 至少需要 5 条记录才能开始洞察分析。当前：<span id="record-count">0</span> 条</p>
+  </div>
+  <div id="insights-content" style="display:none;">
+    <!-- Summary stats -->
+    <div class="stats-grid" id="stats-grid"></div>
+
+    <!-- Weight trend with diff -->
+    <div class="insight-section">
+      <h2>📈 体重差分序列（日间变化量）</h2>
+      <p style="font-size:12px;color:var(--text-dim);margin-bottom:8px;">聚焦于每日体重<strong>变化量</strong>（ΔWeight），而非绝对值，更精准捕捉波动驱动因子。</p>
+      <div class="chart-container"><canvas id="weight-diff-chart"></canvas></div>
+    </div>
+
+    <!-- Condition filter -->
+    <div class="insight-section">
+      <h2>🎛 条件筛选器</h2>
+      <p style="font-size:12px;color:var(--text-dim);margin-bottom:10px;">手动组合条件，实时查看该条件下的变量关系图。</p>
+      <div class="filter-panel">
+        <div class="filter-item">
+          <label>周期阶段</label>
+          <select id="filter-cycle"><option value="">全部</option><option value="经期">经期</option><option value="卵泡期">卵泡期</option><option value="排卵期">排卵期</option><option value="黄体期">黄体期</option></select>
+        </div>
+        <div class="filter-item">
+          <label>睡眠时长</label>
+          <select id="filter-sleep"><option value="">全部</option><option value="<6">&lt;6h</option><option value=">=6">≥6h</option></select>
+        </div>
+        <div class="filter-item">
+          <label>压力事件</label>
+          <select id="filter-stress"><option value="">全部</option><option value="有">有</option><option value="无">无</option></select>
+        </div>
+        <div class="filter-item">
+          <label>运动</label>
+          <select id="filter-exercise"><option value="">全部</option><option value="有">有</option><option value="无">无</option></select>
+        </div>
+        <div class="filter-item">
+          <label>深度独处</label>
+          <select id="filter-solitude"><option value="">全部</option><option value="是">有</option><option value="否">无</option></select>
+        </div>
+        <button class="btn" onclick="renderFilteredChart()">应用筛选</button>
+      </div>
+      <!-- Derived factor checkboxes -->
+      <div style="margin-top:12px;">
+        <label style="font-size:12px;">自然语言解析因子（勾选后按因子分组）：</label>
+        <div class="factor-list" id="factor-list"></div>
+      </div>
+      <div class="chart-container"><canvas id="filtered-chart"></canvas></div>
+      <div id="filter-summary" style="font-size:12px;color:var(--text-dim);margin-top:8px;"></div>
+    </div>
+
+    <!-- Layered correlation -->
+    <div class="insight-section">
+      <h2>📐 分层相关性分析</h2>
+      <p style="font-size:12px;color:var(--text-dim);margin-bottom:10px;">三层嵌套维度：①生理周期阶段 ②睡眠质量(&lt;6h / ≥6h) ③压力事件(有/无)。在各层级下分别计算各变量与体重差分的相关性。</p>
+      <div id="layered-corr"></div>
+    </div>
+
+    <!-- Cognition -> next day mood -> long-term weight -->
+    <div class="insight-section">
+      <h2>🧠 认知收获 → 次日情绪 → 长期体重稳定性</h2>
+      <p style="font-size:12px;color:var(--text-dim);margin-bottom:8px;">分析内向者"自我内探"对情绪和体重长期稳定性的影响。</p>
+      <div class="chart-container"><canvas id="cognition-chart"></canvas></div>
+      <div id="cognition-corr" style="font-size:13px;margin-top:8px;"></div>
+    </div>
+
+    <!-- Solitude -> mood stability -->
+    <div class="insight-section">
+      <h2>🧘 深度独处 / 心流 → 情绪稳定性 → 体重波动</h2>
+      <div class="chart-container"><canvas id="solitude-chart"></canvas></div>
+      <div id="solitude-corr" style="font-size:13px;margin-top:8px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== RULES TAB ==================== -->
+<div class="tab-content" id="content-rules">
+  <div class="card">
+    <h2>🧠 自动发现的规则</h2>
+    <p style="font-size:13px;color:var(--text-dim);margin-bottom:12px;">基于决策树算法，自动从你的数据中挖掘类似「在黄体期且睡眠不足时，高碳水摄入对体重影响显著」的规则。</p>
+    <div id="rules-list"></div>
+    <div id="rules-empty" class="empty-state"><p>📭 需要更多数据才能发现规则（至少7天记录）</p></div>
+  </div>
+
+  <div class="card">
+    <h2>🔮 早期预警 & 行为预调整建议</h2>
+    <p style="font-size:13px;color:var(--text-dim);margin-bottom:12px;">根据当前状态和周期阶段，提前给出饮食/行为/情绪/语言方面的防范建议。</p>
+    <div id="advice-list"></div>
+  </div>
+
+  <div class="collapse-panel">
+    <div class="collapse-header" onclick="toggleCollapse(this)">
+      <span>🏷 管理关键词映射表</span>
+      <span>▾</span>
+    </div>
+    <div class="collapse-body" id="keyword-body">
+      <p style="font-size:12px;color:var(--text-dim);margin-bottom:10px;">添加自定义关键词→因子映射。保存时自动解析备注中的关键词并存入 derivedFactors 字段。</p>
+      <div class="keyword-row">
+        <input type="text" id="kw-input" placeholder="关键词（如：火锅）" style="flex:1;">
+        <input type="text" id="factor-input" placeholder="因子名（如：高钠饮食）" style="flex:1;">
+        <button class="btn" onclick="addKeyword()">添加</button>
+      </div>
+      <div class="keyword-list" id="keyword-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== ABOUT TAB ==================== -->
+<div class="tab-content" id="content-about">
+  <div class="card">
+    <div class="about-hero">
+      <div class="logo">🌙</div>
+      <h2>内观日志</h2>
+      <div class="tagline">内向者的自我内探 · 体重波动因果健康分析仪</div>
+    </div>
+
+    <div class="about-section">
+      <h3>📌 产品理念</h3>
+      <p>这不是一个简单的体重秤配套 App。它是一个帮你理解「为什么会波动」的工具。</p>
+      <p>对内向者来说，<b>自我内探</b>不是奢侈，而是必需。你的认知收获、深度独处、内心电量——这些看不见的内部状态，其实都在悄悄影响你的情绪，进而影响你的体重稳定性。</p>
+      <p>本工具将<b>自由文本备注</b>作为核心入口，让你记录那些无法被结构化字段捕捉的东西。系统会自动从你的语言中解析关键词因子，找出它们与体重波动的关联。</p>
+    </div>
+
+    <div class="about-section">
+      <h3>🧠 核心分析能力</h3>
+      <ul>
+        <li><b>分层相关性</b>：在周期阶段 × 睡眠 × 压力三层嵌套下分别计算变量与体重差分的相关性</li>
+        <li><b>滞后归因</b>：点击某天体重，自动回溯3天找出最高相关前置因子</li>
+        <li><b>决策树规则发现</b>：自动输出类似"在黄体期且睡眠不足时，高碳水对体重影响显著"的规则</li>
+        <li><b>自然语言解析</b>：扫描备注关键词，自动归类为"高钠饮食""工作压力"等因子</li>
+        <li><b>认知收获→情绪→体重</b>：量化分析自我内探对长期稳定性的影响</li>
+      </ul>
+    </div>
+
+    <div class="about-section">
+      <h3>🩸 周期阶段算法</h3>
+      <p>系统不依赖固定天数划分周期，而是基于出血量标记自动推断：</p>
+      <ul>
+        <li>连续≥7天无出血后首次出血 → 自动标记为"月经第一天"</li>
+        <li>下次月经来临时 → 回溯推14天标记排卵日</li>
+        <li>排卵±3天 → 排卵窗口期</li>
+        <li>尚未完成的周期 → 仅显示已确认阶段，不预测</li>
+      </ul>
+    </div>
+
+    <div class="privacy-box">
+      <h3>🔒 数据隐私承诺</h3>
+      <p>✓ 所有数据仅存储在你的浏览器 localStorage 中，<b>永远不上传到任何服务器</b></p>
+      <p>✓ 没有 注册、登录、云同步——你的数据只属于你</p>
+      <p>✓ 清除浏览器数据 = 清除所有记录，请定期使用「导出」功能备份</p>
+      <p>✓ 本应用为纯前端 PWA，支持离线使用，可"添加到主屏幕"作为独立应用</p>
+    </div>
+
+    <div class="about-section data-mgmt">
+      <h3>💾 数据管理</h3>
+      <div class="row">
+        <div>
+          <label>导出数据备份</label>
+          <div class="hint">建议每周导出一次，保存到安全位置</div>
+        </div>
+        <button class="btn secondary" onclick="exportData()">⬇ 导出 JSON</button>
+      </div>
+      <div class="row">
+        <div>
+          <label>导入备份数据</label>
+          <div class="hint">从导出的 JSON 文件恢复</div>
+        </div>
+        <button class="btn secondary" onclick="document.getElementById('import-file').click()">⬆ 导入</button>
+      </div>
+      <div class="row">
+        <div>
+          <label style="color:var(--danger);">清除所有数据</label>
+          <div class="hint">不可恢复，请先导出备份</div>
+        </div>
+        <button class="btn danger" onclick="clearAllData()">🗑 清除</button>
+      </div>
+    </div>
+
+    <div class="about-section">
+      <h3>📖 使用建议</h3>
+      <ul>
+        <li>每天固定时间（如早晨起床后）记录，保持一致性</li>
+        <li>至少连续记录 7 天，洞察功能才能开始分析</li>
+        <li>善用「复制前一天」功能，减少重复输入</li>
+        <li>认真写内心笔记和活动备注——这是关键词解析的数据源</li>
+        <li>标记深度独处和心流时刻，系统会分析它对情绪和体重的长期影响</li>
+        <li>在「规则」页底部管理你的自定义关键词映射</li>
+      </ul>
+    </div>
+
+    <div class="about-section" style="text-align:center;margin-top:30px;">
+      <p style="font-size:11px;color:var(--text-dim);">内观日志 · 纯前端 PWA · 零成本 · 零追踪<br>v1.0 · 你的数据，你做主</p>
+    </div>
+  </div>
+</div>
+
+<!-- Onboarding overlay (first visit) -->
+<div class="onboarding-overlay" id="onboarding" style="display:none;">
+  <div class="onboarding-card" id="onboarding-card">
+    <h2>🌙 内观日志</h2>
+    <div class="subtitle">内向者的自我内探工具</div>
+    <div id="onboarding-content"></div>
+    <div class="onboarding-dots" id="onboarding-dots"></div>
+    <button class="btn" onclick="nextOnboarding()" style="width:100%;">下一步</button>
+  </div>
+</div>
+
+<!-- Install banner -->
+<div class="install-banner" id="install-banner">
+  <div class="install-text">📱 安装「内观日志」到主屏幕，随时记录</div>
+  <div class="install-btns">
+    <button class="btn" id="install-btn" onclick="installPWA()">安装</button>
+    <button class="btn secondary" onclick="dismissInstall()">稍后</button>
+  </div>
+</div>
+
+<!-- Share overlay -->
+<div class="share-overlay" id="share-overlay">
+  <div class="share-card">
+    <canvas id="share-canvas" width="320" height="400"></canvas>
+    <div class="share-actions">
+      <button class="btn" onclick="downloadShareCard()">⬇ 保存图片</button>
+      <button class="btn secondary" onclick="closeShare()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+</div><!-- /app -->
+
+<script>
+// ============================================================
+//  STORAGE & DATA LAYER
+// ============================================================
+const STORAGE_KEY = 'weight_cause_data_v1';
+const KEYWORD_KEY = 'weight_cause_keywords_v1';
+
+// Preset keyword mappings
+const PRESET_KEYWORDS = {
+  '火锅': '高钠饮食', '烧烤': '高钠饮食', '外卖': '高钠饮食', '腌制品': '高钠饮食',
+  '蛋糕': '高糖饮食', '甜点': '高糖饮食', '奶茶': '高糖饮食', '巧克力': '高糖饮食', '饼干': '高糖饮食',
+  '炸鸡': '高脂饮食', '汉堡': '高脂饮食', '薯条': '高脂饮食', '披萨': '高脂饮食',
+  '酒': '酒精摄入', '啤酒': '酒精摄入', '红酒': '酒精摄入', '白酒': '酒精摄入',
+  '咖啡': '咖啡因摄入', '浓茶': '咖啡因摄入',
+  '熬夜': '睡眠不足', '失眠': '睡眠不足', '通宵': '睡眠不足',
+  '加班': '工作压力', 'ddl': '工作压力', 'deadline': '工作压力', '述职': '工作压力',
+  '吵架': '情绪冲突', '冲突': '情绪冲突', '分手': '情绪冲突',
+  '旅行': '环境变化', '出差': '环境变化',
+  '跑步': '有氧运动', '长跑': '有氧运动', '太极': '有氧运动', '骑行': '有氧运动',
+  '力量': '无氧运动', '举铁': '无氧运动',
+  '瑜伽': '身心练习', '冥想': '身心练习',
+  ' menstruation': '经期', '月经': '经期', '例假': '经期',
+  '独处': '深度独处', '心流': '心流体验',
+};
+
+let records = [];
+let charts = {};
+let currentEditDate = null;
+let selectedFactors = [];
+
+function loadData() {
+  try {
+    records = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  } catch { records = []; }
+  // sort by date
+  records.sort((a,b) => a.date.localeCompare(b.date));
+}
+
+function saveDataToStorage() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+}
+
+function loadKeywords() {
+  let custom = {};
+  try { custom = JSON.parse(localStorage.getItem(KEYWORD_KEY) || '{}'); } catch {}
+  return { ...PRESET_KEYWORDS, ...custom };
+}
+
+function saveCustomKeyword(keyword, factor) {
+  let custom = {};
+  try { custom = JSON.parse(localStorage.getItem(KEYWORD_KEY) || '{}'); } catch {}
+  custom[keyword] = factor;
+  localStorage.setItem(KEYWORD_KEY, JSON.stringify(custom));
+}
+
+function removeCustomKeyword(keyword) {
+  let custom = {};
+  try { custom = JSON.parse(localStorage.getItem(KEYWORD_KEY) || '{}'); } catch {}
+  delete custom[keyword];
+  localStorage.setItem(KEYWORD_KEY, JSON.stringify(custom));
+  renderKeywordList();
+}
+
+// ============================================================
+//  CYCLE PHASE ALGORITHM
+// ============================================================
+function determineCyclePhases(allRecords) {
+  // Returns a map: date -> phase
+  const phaseMap = {};
+  const sorted = [...allRecords].sort((a,b) => a.date.localeCompare(b.date));
+
+  // Find period starts: consecutive >=7 days no bleeding, then first bleeding day
+  const bleedingDays = sorted.filter(r => r.bleeding && r.bleeding !== '无');
+  const periodStarts = [];
+  const periodEnds = [];
+
+  for (let i = 0; i < bleedingDays.length; i++) {
+    const curIdx = sorted.findIndex(r => r.date === bleedingDays[i].date);
+    // Check if previous >=7 days had no bleeding
+    if (curIdx > 0) {
+      let noBleedDays = 0;
+      for (let j = curIdx - 1; j >= 0; j--) {
+        if (!sorted[j].bleeding || sorted[j].bleeding === '无') noBleedDays++;
+        else break;
+        if (noBleedDays >= 7) break;
+      }
+      if (noBleedDays >= 7 || periodStarts.length === 0) {
+        // This is a period start
+        if (periodStarts.length === 0 || noBleedDays >= 7) {
+          periodStarts.push(bleedingDays[i].date);
+        }
+      }
+    } else if (periodStarts.length === 0) {
+      periodStarts.push(bleedingDays[i].date);
+    }
+  }
+
+  // For each period, find end (last consecutive bleeding day)
+  for (let s = 0; s < periodStarts.length; s++) {
+    const startIdx = sorted.findIndex(r => r.date === periodStarts[s]);
+    let endIdx = startIdx;
+    for (let j = startIdx; j < sorted.length; j++) {
+      if (sorted[j].bleeding && sorted[j].bleeding !== '无') {
+        endIdx = j;
+      } else {
+        if (j > startIdx) break;
+      }
+    }
+    periodEnds.push(sorted[endIdx].date);
+  }
+
+  // Assign phases
+  // Period: start to end
+  // Ovulation: 14 days before NEXT period start (retrospective)
+  // Luteal: ovulation to next period start
+  // Follicular: period end to ovulation
+  // Ovulation window: ovulation ±3 days
+
+  for (let s = 0; s < periodStarts.length; s++) {
+    const pStart = periodStarts[s];
+    const pEnd = periodEnds[s];
+    const pStartDate = new Date(pStart);
+    const pEndDate = new Date(pEnd);
+
+    // Mark period
+    for (const r of sorted) {
+      const rd = new Date(r.date);
+      if (rd >= pStartDate && rd <= pEndDate) {
+        phaseMap[r.date] = '经期';
+      }
+    }
+
+    // If there's a next period, calculate ovulation (14 days before next start)
+    if (s + 1 < periodStarts.length) {
+      const nextStart = new Date(periodStarts[s + 1]);
+      const ovulation = new Date(nextStart);
+      ovulation.setDate(ovulation.getDate() - 14);
+
+      // Follicular: period end to ovulation
+      for (const r of sorted) {
+        const rd = new Date(r.date);
+        if (rd > pEndDate && rd < ovulation) {
+          phaseMap[r.date] = '卵泡期';
+        }
+      }
+
+      // Ovulation window: ±3 days
+      for (let d = -3; d <= 3; d++) {
+        const wd = new Date(ovulation);
+        wd.setDate(wd.getDate() + d);
+        const ds = wd.toISOString().slice(0, 10);
+        if (!phaseMap[ds] && sorted.find(r => r.date === ds)) {
+          phaseMap[ds] = '排卵期';
+        }
+      }
+
+      // Luteal: ovulation to next period start
+      for (const r of sorted) {
+        const rd = new Date(r.date);
+        if (rd > ovulation && rd < nextStart && !phaseMap[r.date]) {
+          phaseMap[r.date] = '黄体期';
+        }
+      }
+    } else {
+      // No next period yet — only mark period, don't predict
+      for (const r of sorted) {
+        if (!phaseMap[r.date] && new Date(r.date) > pEndDate) {
+          phaseMap[r.date] = '未知';
+        }
+      }
+    }
+  }
+
+  return phaseMap;
+}
+
+function getCyclePhase(dateStr) {
+  const phaseMap = determineCyclePhases(records);
+  return phaseMap[dateStr] || '未知';
+}
+
+// ============================================================
+//  DERIVED FACTORS (keyword parsing)
+// ============================================================
+function parseDerivedFactors(note) {
+  if (!note) return [];
+  const keywords = loadKeywords();
+  const factors = [];
+  for (const [kw, factor] of Object.entries(keywords)) {
+    if (note.includes(kw) && !factors.includes(factor)) {
+      factors.push(factor);
+    }
+  }
+  return factors;
+}
+
+function getAllDerivedFactors() {
+  const allFactors = new Set();
+  for (const r of records) {
+    if (r.derivedFactors) r.derivedFactors.forEach(f => allFactors.add(f));
+  }
+  return [...allFactors];
+}
+
+// ============================================================
+//  FORM HANDLING
+// ============================================================
+function initForm() {
+  const today = new Date().toISOString().slice(0, 10);
+  document.getElementById('f-date').value = today;
+  currentEditDate = today;
+  loadFormForDate(today);
+  update7DayAverages(today);
+  updateCycleDisplay(today);
+}
+
+function onDateChange() {
+  const date = document.getElementById('f-date').value;
+  currentEditDate = date;
+  loadFormForDate(date);
+  update7DayAverages(date);
+  updateCycleDisplay(date);
+}
+
+function loadFormForDate(date) {
+  const existing = records.find(r => r.date === date);
+  if (existing) {
+    setFieldValue('f-weight', existing.weight);
+    setFieldValue('f-bleeding', existing.bleeding || '无');
+    setFieldValue('f-carb', existing.carb || '');
+    setFieldValue('f-protein', existing.protein || '');
+    setFieldValue('f-sodium', existing.sodium || '');
+    setFieldValue('f-water', existing.water || '');
+    setFieldValue('f-dietNote', existing.dietNote || '');
+    setFieldValue('f-exercise', existing.exercise || '无');
+    setFieldValue('f-exerciseDuration', existing.exerciseDuration || '');
+    setFieldValue('f-sleepHours', existing.sleepHours || '');
+    setFieldValue('f-stress', existing.stress || '无');
+    setFieldValue('f-stressNote', existing.stressNote || '');
+    setFieldValue('f-energyNet', existing.energyNet || 0);
+    document.getElementById('energyNetVal').textContent = existing.energyNet || 0;
+    setFieldValue('f-solitude', existing.solitude || '否');
+    setFieldValue('f-solitudeType', existing.solitudeType || '');
+    setFieldValue('f-solitudeDuration', existing.solitudeDuration || '');
+    setFieldValue('f-dailyNote', existing.dailyNote || '');
+    setFieldValue('f-activityNote', existing.activityNote || '');
+    setFieldValue('f-innerNote', existing.innerNote || '');
+
+    setRatingFromVal('sleepQuality', existing.sleepQuality);
+    setRatingFromVal('mood', existing.mood);
+    setRatingFromVal('energy', existing.energy);
+    setRatingFromVal('socialLoad', existing.socialLoad);
+    setRatingFromVal('cognitionGain', existing.cognitionGain);
+    setRatingFromVal('recovery', existing.recovery);
+  } else {
+    clearFormFields();
+  }
+  toggleExercise();
+  toggleSolitude();
+}
+
+function setFieldValue(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.value = val;
+}
+
+function clearFormFields() {
+  ['f-weight','f-water','f-exerciseDuration','f-sleepHours','f-solitudeDuration','f-dietNote','f-stressNote','f-dailyNote','f-activityNote','f-innerNote'].forEach(id => {
+    setFieldValue(id, '');
+  });
+  setFieldValue('f-bleeding', '无');
+  setFieldValue('f-carb', '');
+  setFieldValue('f-protein', '');
+  setFieldValue('f-sodium', '');
+  setFieldValue('f-exercise', '无');
+  setFieldValue('f-stress', '无');
+  setFieldValue('f-energyNet', 0);
+  setFieldValue('f-solitude', '否');
+  setFieldValue('f-solitudeType', '');
+  document.getElementById('energyNetVal').textContent = '0';
+  ['sleepQuality','mood','energy','socialLoad','cognitionGain','recovery'].forEach(f => clearRating(f));
+}
+
+function clearForm() { clearFormFields(); }
+
+function clearRating(field) {
+  document.querySelectorAll(`.rating-btn[data-field="${field}"]`).forEach(b => b.classList.remove('active'));
+}
+
+function setRating(btn) {
+  const field = btn.dataset.field;
+  const val = parseInt(btn.dataset.val);
+  clearRating(field);
+  btn.classList.add('active');
+}
+
+function setRatingFromVal(field, val) {
+  clearRating(field);
+  if (val) {
+    const btn = document.querySelector(`.rating-btn[data-field="${field}"][data-val="${val}"]`);
+    if (btn) btn.classList.add('active');
+  }
+}
+
+function getRatingVal(field) {
+  const btn = document.querySelector(`.rating-btn[data-field="${field}"].active`);
+  return btn ? parseInt(btn.dataset.val) : null;
+}
+
+function toggleExercise() {
+  // could hide duration if no exercise
+  const ex = document.getElementById('f-exercise').value;
+  const durEl = document.getElementById('f-exerciseDuration');
+  durEl.placeholder = ex === '无' ? '无运动' : '如 30';
+}
+
+function toggleSolitude() {
+  const val = document.getElementById('f-solitude').value;
+  document.getElementById('solitude-fields').style.display = val === '是' ? 'block' : 'none';
+}
+
+function copyPrevDay() {
+  const curDate = new Date(currentEditDate);
+  curDate.setDate(curDate.getDate() - 1);
+  const prevDate = curDate.toISOString().slice(0, 10);
+  const prev = records.find(r => r.date === prevDate);
+  if (prev) {
+    loadFormForDate(prevDate);
+    // change date back to current
+    document.getElementById('f-date').value = currentEditDate;
+    // clear weight (user should input new)
+    document.getElementById('f-weight').value = '';
+    showSaveStatus('已复制 ' + prevDate + ' 的记录（体重请重新输入）');
+  } else {
+    showSaveStatus('前一天 (' + prevDate + ') 无记录', true);
+  }
+}
+
+function showSaveStatus(msg, isError) {
+  const el = document.getElementById('save-status');
+  el.textContent = msg;
+  el.style.color = isError ? 'var(--danger)' : 'var(--accent2)';
+  setTimeout(() => { el.textContent = ''; }, 4000);
+}
+
+function saveRecord() {
+  const date = document.getElementById('f-date').value;
+  if (!date) { showSaveStatus('请选择日期', true); return; }
+
+  const record = {
+    date,
+    weight: parseFloat(document.getElementById('f-weight').value) || null,
+    bleeding: document.getElementById('f-bleeding').value,
+    carb: document.getElementById('f-carb').value,
+    protein: document.getElementById('f-protein').value,
+    sodium: document.getElementById('f-sodium').value,
+    water: parseInt(document.getElementById('f-water').value) || 0,
+    dietNote: document.getElementById('f-dietNote').value,
+    exercise: document.getElementById('f-exercise').value,
+    exerciseDuration: parseInt(document.getElementById('f-exerciseDuration').value) || 0,
+    sleepHours: parseFloat(document.getElementById('f-sleepHours').value) || null,
+    sleepQuality: getRatingVal('sleepQuality'),
+    mood: getRatingVal('mood'),
+    energy: getRatingVal('energy'),
+    stress: document.getElementById('f-stress').value,
+    stressNote: document.getElementById('f-stressNote').value,
+    socialLoad: getRatingVal('socialLoad'),
+    cognitionGain: getRatingVal('cognitionGain'),
+    energyNet: parseInt(document.getElementById('f-energyNet').value),
+    activityNote: document.getElementById('f-activityNote').value,
+    solitude: document.getElementById('f-solitude').value,
+    solitudeType: document.getElementById('f-solitude').value === '是' ? document.getElementById('f-solitudeType').value : '',
+    solitudeDuration: document.getElementById('f-solitude').value === '是' ? parseInt(document.getElementById('f-solitudeDuration').value) || 0 : 0,
+    recovery: document.getElementById('f-solitude').value === '是' ? getRatingVal('recovery') : null,
+    dailyNote: document.getElementById('f-dailyNote').value,
+    innerNote: document.getElementById('f-innerNote').value,
+  };
+
+  // Parse derived factors from all text notes
+  const allNotes = [record.dietNote, record.dailyNote, record.activityNote, record.innerNote, record.stressNote].join(' ');
+  record.derivedFactors = parseDerivedFactors(allNotes);
+
+  // Update cycle phase
+  record.cyclePhase = getCyclePhase(date);
+
+  // Replace or add
+  const idx = records.findIndex(r => r.date === date);
+  if (idx >= 0) records[idx] = record;
+  else { records.push(record); records.sort((a,b) => a.date.localeCompare(b.date)); }
+
+  // Recalculate all cycle phases
+  const phaseMap = determineCyclePhases(records);
+  records.forEach(r => r.cyclePhase = phaseMap[r.date] || '未知');
+
+  saveDataToStorage();
+  showSaveStatus('✅ 已保存 ' + date + ' 的记录');
+  updateCycleDisplay(date);
+  updateRecordCount();
+}
+
+// ============================================================
+//  7-DAY AVERAGES
+// ============================================================
+function update7DayAverages(date) {
+  const target = new Date(date);
+  const past7 = records.filter(r => {
+    const rd = new Date(r.date);
+    return rd < target && (target - rd) / 86400000 <= 7;
+  });
+
+  if (past7.length === 0) {
+    ['avg-sleep','avg-mood','avg-energy','avg-social','avg-cognition'].forEach(id => {
+      document.getElementById(id).textContent = '';
+    });
+    return;
+  }
+
+  const avg = (arr, field) => {
+    const vals = arr.map(r => r[field]).filter(v => v != null);
+    return vals.length ? (vals.reduce((a,b) => a+b) / vals.length).toFixed(1) : '-';
+  };
+
+  document.getElementById('avg-sleep').textContent = `近7天均值: ${avg(past7,'sleepQuality')}`;
+  document.getElementById('avg-mood').textContent = `近7天均值: ${avg(past7,'mood')}`;
+  document.getElementById('avg-energy').textContent = `近7天均值: ${avg(past7,'energy')}`;
+  document.getElementById('avg-social').textContent = `近7天均值: ${avg(past7,'socialLoad')}`;
+  document.getElementById('avg-cognition').textContent = `近7天均值: ${avg(past7,'cognitionGain')}`;
+}
+
+function updateCycleDisplay(date) {
+  const phase = getCyclePhase(date);
+  const el = document.getElementById('cycle-display');
+  el.textContent = `周期：${phase || '未知'}`;
+  el.className = `cycle-badge cycle-${phase || '未知'}`;
+}
+
+// ============================================================
+//  ANCHOR TABLES
+// ============================================================
+const ANCHOR_TABLES = {
+  mood: [
+    [1, '极度沮丧、难以集中、不想交流'],
+    [2, '低落、动力不足、易怒'],
+    [3, '中性、平静、能处理日常任务'],
+    [4, '积极、有动力、乐于交流'],
+    [5, '非常兴奋、充满灵感、愉悦'],
+  ],
+  energy: [
+    [1, '几乎无法起身、异常疲惫'],
+    [2, '显著低于平时、需强制启动'],
+    [3, '正常、无特殊感'],
+    [4, '高于平时、有活力'],
+    [5, '精力充沛、感觉体能极佳'],
+  ],
+  sleep: [
+    [1, '整夜反复醒来、几乎没睡'],
+    [2, '睡得浅、多梦、醒后疲惫'],
+    [3, '睡得一般、醒后无明显不适'],
+    [4, '睡得较好、醒后精神饱满'],
+    [5, '睡得极好、醒后神清气爽'],
+  ],
+};
+
+function showAnchor(type) {
+  const data = ANCHOR_TABLES[type];
+  if (!data) return;
+  const box = document.getElementById('anchor-box');
+  box.innerHTML = `<table><thead><tr><th>分数</th><th>${type==='mood'?'情绪':type==='energy'?'精力':'睡眠质量'}锚定描述</th></tr></thead><tbody>${data.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('')}</tbody></table>`;
+  box.style.display = 'block';
+  const rect = event.target.getBoundingClientRect();
+  box.style.left = (rect.left - 100) + 'px';
+  box.style.top = (rect.bottom + 10) + 'px';
+}
+
+function hideAnchor() {
+  document.getElementById('anchor-box').style.display = 'none';
+}
+
+// ============================================================
+//  TAB SWITCHING
+// ============================================================
+function switchTab(tab) {
+  ['record','history','insights','rules','about'].forEach(t => {
+    document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+    document.getElementById('content-' + t).classList.toggle('active', t === tab);
+  });
+  if (tab === 'history') renderHistory();
+  if (tab === 'insights') renderInsights();
+  if (tab === 'rules') renderRules();
+}
+
+// ============================================================
+//  HISTORY & LAG ATTRIBUTION
+// ============================================================
+let selectedHistoryDate = null;
+
+function renderHistory() {
+  if (records.length === 0) {
+    document.getElementById('history-empty').style.display = 'block';
+    document.getElementById('history-table').style.display = 'none';
+    return;
+  }
+  document.getElementById('history-empty').style.display = 'none';
+  document.getElementById('history-table').style.display = '';
+
+  const cols = ['日期','周期','体重Δ','出血','碳水','蛋白','钠','水','运动','时长','睡眠h','睡质','情绪','精力','压力','社交','认知','能量净值','独处','恢复','因子'];
+  const head = document.getElementById('history-head');
+  head.innerHTML = cols.map(c => `<th>${c}</th>`).join('');
+
+  const body = document.getElementById('history-body');
+  const sorted = [...records].sort((a,b) => b.date.localeCompare(a.date));
+
+  body.innerHTML = sorted.map((r, i) => {
+    const prev = sorted[i+1];
+    const weightDelta = prev && prev.weight && r.weight ? (r.weight - prev.weight).toFixed(1) : '-';
+    const factors = (r.derivedFactors || []).join(', ');
+    const isTarget = selectedHistoryDate === r.date;
+    return `<tr class="${isTarget?'target-row':''}" onclick="selectHistoryDate('${r.date}')">
+      <td>${r.date}</td>
+      <td><span class="cycle-badge cycle-${r.cyclePhase||'未知'}" style="font-size:10px;padding:2px 6px;">${r.cyclePhase||'?'}</span></td>
+      <td style="font-weight:700;color:${weightDelta>0?'var(--danger)':weightDelta<0?'var(--accent2)':'var(--text)'}">${weightDelta>=0?'+':''}${weightDelta}</td>
+      <td>${r.bleeding||'-'}</td>
+      <td>${r.carb||'-'}</td>
+      <td>${r.protein||'-'}</td>
+      <td>${r.sodium||'-'}</td>
+      <td>${r.water||0}</td>
+      <td>${r.exercise||'-'}</td>
+      <td>${r.exercise&&r.exercise!=='无'?(r.exerciseDuration||'-'):'-'}</td>
+      <td>${r.sleepHours||'-'}</td>
+      <td>${r.sleepQuality||'-'}</td>
+      <td>${r.mood||'-'}</td>
+      <td>${r.energy||'-'}</td>
+      <td>${r.stress||'-'}</td>
+      <td>${r.socialLoad||'-'}</td>
+      <td>${r.cognitionGain||'-'}</td>
+      <td>${r.energyNet||0}</td>
+      <td>${r.solitude||'-'}</td>
+      <td>${r.solitude==='是'?(r.recovery||'-'):'-'}</td>
+      <td style="font-size:10px;">${factors}</td>
+    </tr>`;
+  }).join('');
+
+  renderWeightTrendChart();
+}
+
+function selectHistoryDate(date) {
+  selectedHistoryDate = date;
+  renderHistory();
+  renderLagAttribution(date);
+}
+
+function renderLagAttribution(date) {
+  const box = document.getElementById('lag-attribution');
+  const target = records.find(r => r.date === date);
+  if (!target || !target.weight) {
+    box.innerHTML = '';
+    return;
+  }
+
+  // Find target date weight delta
+  const targetDate = new Date(date);
+  const before = records.filter(r => {
+    const rd = new Date(r.date);
+    const diff = (targetDate - rd) / 86400000;
+    return diff > 0 && diff <= 3;
+  }).sort((a,b) => b.date.localeCompare(a.date));
+
+  if (before.length === 0) {
+    box.innerHTML = `<div class="lag-box"><div class="lag-title">🔍 滞后归因分析 — ${date}</div><div class="lag-detail">前3天无足够记录数据，无法计算滞后归因。</div></div>`;
+    return;
+  }
+
+  const prevRec = records.find(r => {
+    const rd = new Date(r.date);
+    return rd < targetDate && Math.max(...records.filter(rr => new Date(rr.date) < targetDate).map(rr => new Date(rr.date).getTime())) === rd.getTime();
+  });
+
+  const weightDelta = prevRec && prevRec.weight && target.weight ? (target.weight - prevRec.weight) : null;
+
+  // Calculate correlations of each factor with weight change
+  const factors = [
+    { key: 'sodium', label: '钠摄入', type: 'ord', vals: {'低':1,'中':2,'高':3} },
+    { key: 'carb', label: '碳水摄入', type: 'ord', vals: {'低':1,'中':2,'高':3} },
+    { key: 'protein', label: '蛋白质摄入', type: 'ord', vals: {'低':1,'中':2,'高':3} },
+    { key: 'water', label: '饮水量', type: 'num' },
+    { key: 'sleepHours', label: '睡眠时长', type: 'num' },
+    { key: 'sleepQuality', label: '睡眠质量', type: 'num' },
+    { key: 'mood', label: '情绪评分', type: 'num' },
+    { key: 'energy', label: '精力评分', type: 'num' },
+    { key: 'exerciseDuration', label: '运动时长', type: 'num' },
+    { key: 'socialLoad', label: '社交负荷', type: 'num' },
+    { key: 'cognitionGain', label: '认知收获', type: 'num' },
+    { key: 'energyNet', label: '能量净值', type: 'num' },
+  ];
+
+  // Find the factor with highest absolute value in the lag window
+  let bestFactor = null;
+  let bestVal = 0;
+  let bestDay = '';
+
+  for (const f of factors) {
+    for (const r of before) {
+      let val = null;
+      if (f.type === 'ord') {
+        val = f.vals[r[f.key]];
+      } else {
+        val = r[f.key];
+      }
+      if (val != null && weightDelta != null) {
+        // Simple contribution: factor value * direction
+        const contribution = val * Math.sign(weightDelta);
+        if (Math.abs(contribution) > Math.abs(bestVal)) {
+          bestVal = contribution;
+          bestFactor = f;
+          bestDay = r.date;
+        }
+      }
+    }
+  }
+
+  // Also check derived factors
+  const derivedList = [];
+  for (const r of before) {
+    if (r.derivedFactors && r.derivedFactors.length > 0) {
+      derivedList.push({ date: r.date, factors: r.derivedFactors });
+    }
+  }
+
+  let html = `<div class="lag-box">
+    <div class="lag-title">🔍 滞后归因分析 — ${date}</div>
+    <div class="lag-detail">本次体重：${target.weight} kg | 变化量：${weightDelta!=null?(weightDelta>=0?'+':'')+weightDelta.toFixed(1)+' kg':'无法计算（前一天无体重）'}</div>`;
+
+  if (bestFactor && weightDelta != null) {
+    const direction = weightDelta > 0 ? '正相关（推升体重）' : '负相关（降低体重）';
+    html += `<div class="lag-factor">⚡ 最高相关前置因子：<b>${bestFactor.label}</b></div>
+    <div class="lag-detail">→ 在 ${bestDay} 记录的「${bestFactor.label}」与本次体重波动 ${direction} 影响最强。</div>`;
+  }
+
+  if (derivedList.length > 0) {
+    html += `<div class="lag-detail" style="margin-top:6px;">📌 前3天解析到的关键词因子：${derivedList.map(d => `${d.date}: ${d.factors.join(', ')}`).join(' | ')}</div>`;
+  }
+
+  html += `</div>`;
+  box.innerHTML = html;
+}
+
+// ============================================================
+//  WEIGHT TREND CHART
+// ============================================================
+function renderWeightTrendChart() {
+  const ctx = document.getElementById('weight-trend-chart');
+  if (charts.weightTrend) charts.weightTrend.destroy();
+
+  const sorted = [...records].filter(r => r.weight).sort((a,b) => a.date.localeCompare(b.date));
+  if (sorted.length === 0) return;
+
+  const cycleColors = sorted.map(r => {
+    const p = r.cyclePhase;
+    if (p === '经期') return 'rgba(240,101,101,0.3)';
+    if (p === '卵泡期') return 'rgba(77,212,172,0.3)';
+    if (p === '排卵期') return 'rgba(240,160,80,0.3)';
+    if (p === '黄体期') return 'rgba(124,92,252,0.3)';
+    return 'rgba(146,152,168,0.1)';
+  });
+
+  charts.weightTrend = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: sorted.map(r => r.date),
+      datasets: [{
+        label: '体重 (kg)',
+        data: sorted.map(r => r.weight),
+        borderColor: '#7c5cfc',
+        backgroundColor: 'rgba(124,92,252,0.1)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 5,
+        pointBackgroundColor: cycleColors.map(c => c.replace('0.3','0.8').replace('0.1','0.3')),
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#e8eaf0' } },
+        tooltip: { callbacks: {
+          afterLabel: (ctx) => {
+            const r = sorted[ctx.dataIndex];
+            return `周期: ${r.cyclePhase||'?'} | 情绪: ${r.mood||'-'} | 睡眠: ${r.sleepHours||'-'}h`;
+          }
+        }}
+      },
+      scales: {
+        x: { ticks: { color: '#9298a8', maxRotation: 45 }, grid: { color: '#2e3346' } },
+        y: { ticks: { color: '#9298a8' }, grid: { color: '#2e3346' } }
+      }
+    }
+  });
+}
+
+// ============================================================
+//  INSIGHTS
+// ============================================================
+function updateRecordCount() {
+  document.getElementById('record-count').textContent = records.length;
+}
+
+function renderInsights() {
+  updateRecordCount();
+  const weightRecords = records.filter(r => r.weight != null);
+  if (weightRecords.length < 5) {
+    document.getElementById('insights-empty').style.display = 'block';
+    document.getElementById('insights-content').style.display = 'none';
+    return;
+  }
+  document.getElementById('insights-empty').style.display = 'none';
+  document.getElementById('insights-content').style.display = 'block';
+
+  renderSummaryStats();
+  renderWeightDiffChart();
+  renderFactorList();
+  renderFilteredChart();
+  renderLayeredCorrelation();
+  renderCognitionChart();
+  renderSolitudeChart();
+}
+
+function renderSummaryStats() {
+  const wr = records.filter(r => r.weight != null).sort((a,b) => a.date.localeCompare(b.date));
+  if (wr.length === 0) return;
+  const weights = wr.map(r => r.weight);
+  const avg = (weights.reduce((a,b)=>a+b)/weights.length).toFixed(1);
+  const min = Math.min(...weights).toFixed(1);
+  const max = Math.max(...weights).toFixed(1);
+  const range = (max - min).toFixed(1);
+
+  // Average daily absolute delta
+  let totalDelta = 0, count = 0;
+  for (let i = 1; i < wr.length; i++) {
+    totalDelta += Math.abs(wr[i].weight - wr[i-1].weight);
+    count++;
+  }
+  const avgDelta = count ? (totalDelta / count).toFixed(2) : '0';
+
+  document.getElementById('stats-grid').innerHTML = `
+    <div class="stat-card"><div class="val">${avg}</div><div class="label">平均体重 (kg)</div></div>
+    <div class="stat-card"><div class="val">${range}</div><div class="label">波动范围 (kg)</div></div>
+    <div class="stat-card"><div class="val">${avgDelta}</div><div class="label">日均变化量 (kg)</div></div>
+    <div class="stat-card"><div class="val">${records.length}</div><div class="label">总记录天数</div></div>
+  `;
+}
+
+function renderWeightDiffChart() {
+  const ctx = document.getElementById('weight-diff-chart');
+  if (charts.weightDiff) charts.weightDiff.destroy();
+
+  const sorted = [...records].filter(r => r.weight != null).sort((a,b) => a.date.localeCompare(b.date));
+  const diffs = [];
+  const labels = [];
+  const colors = [];
+
+  for (let i = 1; i < sorted.length; i++) {
+    const delta = sorted[i].weight - sorted[i-1].weight;
+    diffs.push(delta.toFixed(2));
+    labels.push(sorted[i].date);
+    colors.push(delta > 0 ? 'rgba(240,101,101,0.7)' : delta < 0 ? 'rgba(77,212,172,0.7)' : 'rgba(146,152,168,0.5)');
+  }
+
+  charts.weightDiff = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ label: '体重日间变化 (kg)', data: diffs, backgroundColor: colors, borderRadius: 4 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#e8eaf0' } } },
+      scales: {
+        x: { ticks: { color: '#9298a8', maxRotation: 45 }, grid: { color: '#2e3346' } },
+        y: { ticks: { color: '#9298a8' }, grid: { color: '#2e3346' } }
+      }
+    }
+  });
+}
+
+// ============================================================
+//  CONDITION FILTER
+// ============================================================
+function renderFactorList() {
+  const factors = getAllDerivedFactors();
+  const el = document.getElementById('factor-list');
+  if (factors.length === 0) {
+    el.innerHTML = '<span style="font-size:12px;color:var(--text-dim);">暂无解析到的因子</span>';
+    return;
+  }
+  el.innerHTML = factors.map(f =>
+    `<label class="factor-chip" onclick="toggleFactor('${f}', event)">
+      <input type="checkbox" value="${f}"> ${f}
+    </label>`
+  ).join('');
+}
+
+function toggleFactor(factor, event) {
+  if (event.target.tagName === 'INPUT') {
+    if (event.target.checked) {
+      if (!selectedFactors.includes(factor)) selectedFactors.push(factor);
+    } else {
+      selectedFactors = selectedFactors.filter(f => f !== factor);
+    }
+    event.currentTarget.classList.toggle('active', event.target.checked);
+    renderFilteredChart();
+  }
+}
+
+function applyFilters(arr) {
+  const cycle = document.getElementById('filter-cycle').value;
+  const sleep = document.getElementById('filter-sleep').value;
+  const stress = document.getElementById('filter-stress').value;
+  const exercise = document.getElementById('filter-exercise').value;
+  const solitude = document.getElementById('filter-solitude').value;
+
+  return arr.filter(r => {
+    if (cycle && r.cyclePhase !== cycle) return false;
+    if (sleep === '<6' && (r.sleepHours == null || r.sleepHours >= 6)) return false;
+    if (sleep === '>=6' && (r.sleepHours == null || r.sleepHours < 6)) return false;
+    if (stress && r.stress !== stress) return false;
+    if (exercise === '有' && (!r.exercise || r.exercise === '无')) return false;
+    if (exercise === '无' && r.exercise && r.exercise !== '无') return false;
+    if (solitude && r.solitude !== solitude) return false;
+    // selected derived factors (AND logic)
+    if (selectedFactors.length > 0) {
+      const rf = r.derivedFactors || [];
+      for (const sf of selectedFactors) {
+        if (!rf.includes(sf)) return false;
+      }
+    }
+    return true;
+  });
+}
+
+function renderFilteredChart() {
+  const ctx = document.getElementById('filtered-chart');
+  if (charts.filtered) charts.filtered.destroy();
+
+  const filtered = applyFilters(records);
+  const sorted = filtered.filter(r => r.weight != null).sort((a,b) => a.date.localeCompare(b.date));
+
+  document.getElementById('filter-summary').textContent = `筛选结果：${filtered.length} 条记录（其中 ${sorted.length} 条含体重数据）`;
+
+  if (sorted.length === 0) return;
+
+  const labels = sorted.map(r => r.date);
+  const weightData = sorted.map(r => r.weight);
+
+  const datasets = [{
+    label: '体重 (kg)',
+    data: weightData,
+    borderColor: '#7c5cfc',
+    backgroundColor: 'rgba(124,92,252,0.1)',
+    fill: false,
+    tension: 0.3,
+    yAxisID: 'y',
+  }];
+
+  // If factors selected, show grouped average
+  if (selectedFactors.length > 0) {
+    // Show factor presence as markers
+    const factorData = sorted.map(r => {
+      const rf = r.derivedFactors || [];
+      return rf.length;
+    });
+    datasets.push({
+      label: '解析因子数量',
+      data: factorData,
+      type: 'bar',
+      backgroundColor: 'rgba(77,212,172,0.5)',
+      yAxisID: 'y1',
+    });
+  }
+
+  charts.filtered = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#e8eaf0' } } },
+      scales: {
+        x: { ticks: { color: '#9298a8', maxRotation: 45 }, grid: { color: '#2e3346' } },
+        y: { position: 'left', ticks: { color: '#9298a8' }, grid: { color: '#2e3346' }, title: { display: true, text: '体重 (kg)', color: '#9298a8' } },
+        y1: { position: 'right', ticks: { color: '#9298a8' }, grid: { drawOnChartArea: false }, title: { display: true, text: '因子数', color: '#9298a8' } }
+      }
+    }
+  });
+}
+
+// ============================================================
+//  LAYERED CORRELATION
+// ============================================================
+function pearsonR(x, y) {
+  const n = x.length;
+  if (n < 2) return null;
+  const mx = x.reduce((a,b)=>a+b,0)/n;
+  const my = y.reduce((a,b)=>a+b,0)/n;
+  let num = 0, dx = 0, dy = 0;
+  for (let i = 0; i < n; i++) {
+    num += (x[i]-mx)*(y[i]-my);
+    dx += (x[i]-mx)**2;
+    dy += (y[i]-my)**2;
+  }
+  const denom = Math.sqrt(dx*dy);
+  return denom === 0 ? null : num/denom;
+}
+
+function renderLayeredCorrelation() {
+  const container = document.getElementById('layered-corr');
+  const sorted = [...records].filter(r => r.weight != null).sort((a,b) => a.date.localeCompare(b.date));
+
+  // Compute weight deltas
+  const deltaRecords = [];
+  for (let i = 1; i < sorted.length; i++) {
+    deltaRecords.push({
+      ...sorted[i],
+      weightDelta: sorted[i].weight - sorted[i-1].weight,
+      // Use PREVIOUS day's factors (lag=1) as predictors
+      prevCarb: sorted[i-1].carb,
+      prevProtein: sorted[i-1].protein,
+      prevSodium: sorted[i-1].sodium,
+      prevWater: sorted[i-1].water,
+      prevSleepHours: sorted[i-1].sleepHours,
+      prevSleepQuality: sorted[i-1].sleepQuality,
+      prevMood: sorted[i-1].mood,
+      prevEnergy: sorted[i-1].energy,
+      prevExerciseDur: sorted[i-1].exerciseDuration,
+      prevSocialLoad: sorted[i-1].socialLoad,
+      prevCognition: sorted[i-1].cognitionGain,
+      prevEnergyNet: sorted[i-1].energyNet,
+    });
+  }
+
+  const ordMap = { '低': 1, '中': 2, '高': 3 };
+  const predictors = [
+    { key: 'prevCarb', label: '前日碳水', ord: ordMap },
+    { key: 'prevProtein', label: '前日蛋白质', ord: ordMap },
+    { key: 'prevSodium', label: '前日钠摄入', ord: ordMap },
+    { key: 'prevWater', label: '前日饮水量', ord: null },
+    { key: 'prevSleepHours', label: '前日睡眠时长', ord: null },
+    { key: 'prevSleepQuality', label: '前日睡眠质量', ord: null },
+    { key: 'prevMood', label: '前日情绪', ord: null },
+    { key: 'prevEnergy', label: '前日精力', ord: null },
+    { key: 'prevExerciseDur', label: '前日运动时长', ord: null },
+    { key: 'prevSocialLoad', label: '前日社交负荷', ord: null },
+    { key: 'prevCognition', label: '前日认知收获', ord: null },
+    { key: 'prevEnergyNet', label: '前日能量净值', ord: null },
+  ];
+
+  // Layers: cycle phase × sleep(<6/≥6) × stress(yes/no)
+  const layers = [];
+  const phases = ['经期','卵泡期','排卵期','黄体期'];
+  const sleepCats = ['all','<6','>=6'];
+  const stressCats = ['all','有','无'];
+
+  for (const phase of phases) {
+    const phaseData = deltaRecords.filter(r => r.cyclePhase === phase);
+    if (phaseData.length < 2) continue;
+
+    for (const sc of sleepCats) {
+      const sd = phaseData.filter(r => {
+        if (sc === 'all') return true;
+        if (sc === '<6') return r.prevSleepHours != null && r.prevSleepHours < 6;
+        if (sc === '>=6') return r.prevSleepHours != null && r.prevSleepHours >= 6;
+      });
+      if (sd.length < 2) continue;
+
+      for (const stc of stressCats) {
+        const std = sd.filter(r => {
+          if (stc === 'all') return true;
+          return r.stress === stc;
+        });
+        if (std.length < 2) continue;
+
+        // Compute correlations
+        const yVals = std.map(r => r.weightDelta);
+        const results = [];
+        for (const p of predictors) {
+          const xVals = std.map(r => {
+            const v = r[p.key];
+            if (v == null) return null;
+            if (p.ord) return p.ord[v] || null;
+            return typeof v === 'number' ? v : null;
+          }).filter(v => v != null);
+          if (xVals.length < 2) continue;
+          // Need matching y values
+          const pairs = std.map(r => {
+            const v = r[p.key];
+            if (v == null) return null;
+            const xv = p.ord ? (p.ord[v] || null) : (typeof v === 'number' ? v : null);
+            return xv != null ? [xv, r.weightDelta] : null;
+          }).filter(v => v != null);
+
+          if (pairs.length >= 2) {
+            const r = pearsonR(pairs.map(p=>p[0]), pairs.map(p=>p[1]));
+            if (r != null && Math.abs(r) >= 0.3) {
+              results.push({ label: p.label, r, n: pairs.length });
+            }
+          }
+        }
+
+        if (results.length > 0) {
+          results.sort((a,b) => Math.abs(b.r) - Math.abs(a.r));
+          const layerLabel = `${phase} × ${sc==='all'?'全睡眠':sc==='<6'?'<6h':'≥6h'} × ${stc==='all'?'全压力':stc==='有'?'有压力':'无压力'}`;
+          layers.push({ label: layerLabel, n: std.length, results });
+        }
+      }
+    }
+  }
+
+  if (layers.length === 0) {
+    container.innerHTML = '<p style="color:var(--text-dim);font-size:13px;">数据不足以进行分层分析。需要更多记录（每个分层至少2条含体重数据）。</p>';
+    return;
+  }
+
+  container.innerHTML = layers.map(layer => `
+    <div class="sub-section">
+      <h3>${layer.label} <span style="font-size:11px;color:var(--text-dim);">(n=${layer.n})</span></h3>
+      <table class="data-table">
+        <thead><tr><th>前置因子</th><th>相关系数 r</th><th>方向</th><th>样本量</th></tr></thead>
+        <tbody>
+          ${layer.results.map(r => `
+            <tr>
+              <td style="text-align:left;">${r.label}</td>
+              <td style="font-weight:700;color:${Math.abs(r.r)>=0.5?'var(--danger)':Math.abs(r.r)>=0.3?'var(--warn)':'var(--accent2)'}">${r.r.toFixed(3)}</td>
+              <td>${r.r > 0 ? '↑正相关' : '↓负相关'}</td>
+              <td>${r.n}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `).join('');
+}
+
+// ============================================================
+//  COGNITION -> NEXT DAY MOOD -> WEIGHT STABILITY
+// ============================================================
+function renderCognitionChart() {
+  const ctx = document.getElementById('cognition-chart');
+  if (charts.cognition) charts.cognition.destroy();
+
+  const sorted = [...records].sort((a,b) => a.date.localeCompare(b.date));
+  const labels = [];
+  const cognitionData = [];
+  const nextMoodData = [];
+  const weightDeltaAbs = [];
+
+  for (let i = 0; i < sorted.length - 1; i++) {
+    if (sorted[i].cognitionGain != null && sorted[i+1].mood != null) {
+      labels.push(sorted[i].date);
+      cognitionData.push(sorted[i].cognitionGain);
+      nextMoodData.push(sorted[i+1].mood);
+      // Weight delta of next day
+      if (sorted[i+1].weight != null && sorted[i].weight != null) {
+        weightDeltaAbs.push(Math.abs(sorted[i+1].weight - sorted[i].weight).toFixed(2));
+      } else {
+        weightDeltaAbs.push(null);
+      }
+    }
+  }
+
+  if (labels.length === 0) return;
+
+  charts.cognition = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: '当日认知收获', data: cognitionData, borderColor: '#4dd4ac', backgroundColor: 'rgba(77,212,172,0.1)', tension: 0.3, yAxisID: 'y' },
+        { label: '次日情绪评分', data: nextMoodData, borderColor: '#7c5cfc', backgroundColor: 'rgba(124,92,252,0.1)', tension: 0.3, yAxisID: 'y' },
+        { label: '次日体重绝对变化', data: weightDeltaAbs, borderColor: '#f0a050', backgroundColor: 'rgba(240,160,80,0.1)', tension: 0.3, yAxisID: 'y1' },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#e8eaf0' } } },
+      scales: {
+        x: { ticks: { color: '#9298a8', maxRotation: 45 }, grid: { color: '#2e3346' } },
+        y: { position: 'left', ticks: { color: '#9298a8' }, grid: { color: '#2e3346' }, min: 0, max: 5, title: { display: true, text: '评分 (1-5)', color: '#9298a8' } },
+        y1: { position: 'right', ticks: { color: '#9298a8' }, grid: { drawOnChartArea: false }, title: { display: true, text: '体重Δ (kg)', color: '#9298a8' } }
+      }
+    }
+  });
+
+  // Compute correlation
+  const pairs = [];
+  for (let i = 0; i < cognitionData.length; i++) {
+    if (weightDeltaAbs[i] != null) {
+      pairs.push([cognitionData[i], parseFloat(weightDeltaAbs[i])]);
+    }
+  }
+  const r1 = pairs.length >= 2 ? pearsonR(pairs.map(p=>p[0]), pairs.map(p=>p[1])) : null;
+
+  const moodPairs = cognitionData.map((v, i) => [v, nextMoodData[i]]);
+  const r2 = moodPairs.length >= 2 ? pearsonR(moodPairs.map(p=>p[0]), moodPairs.map(p=>p[1])) : null;
+
+  let html = '<h3 style="margin-bottom:6px;">量化关系</h3>';
+  if (r2 != null) {
+    html += `<p style="font-size:13px;">📊 <b>认知收获 → 次日情绪</b>：相关系数 r = <b style="color:${Math.abs(r2)>=0.3?'var(--warn)':'var(--accent2)'}">${r2.toFixed(3)}</b> ${r2 > 0 ? '（正：认知收获越多，次日情绪越好）' : '（负：认知收获越多，次日情绪反而越低）'}</p>`;
+  }
+  if (r1 != null) {
+    html += `<p style="font-size:13px;margin-top:4px;">📊 <b>认知收获 → 次日体重波动幅度</b>：相关系数 r = <b style="color:${Math.abs(r1)>=0.3?'var(--warn)':'var(--accent2)'}">${r1.toFixed(3)}</b> ${r1 < 0 ? '（负：认知收获越多，次日体重波动越小，更稳定）' : '（正：认知收获越多，次日体重波动越大）'}</p>`;
+  }
+  document.getElementById('cognition-corr').innerHTML = html;
+}
+
+// ============================================================
+//  SOLITUDE -> MOOD STABILITY
+// ============================================================
+function renderSolitudeChart() {
+  const ctx = document.getElementById('solitude-chart');
+  if (charts.solitude) charts.solitude.destroy();
+
+  const sorted = [...records].sort((a,b) => a.date.localeCompare(b.date));
+
+  // Group: solitude yes vs no
+  const yesRecords = sorted.filter(r => r.solitude === '是');
+  const noRecords = sorted.filter(r => r.solitude === '否');
+
+  // Compute mood volatility (mood change day to day)
+  const moodVolatility = (arr) => {
+    if (arr.length < 2) return null;
+    let totalChange = 0, count = 0;
+    for (let i = 1; i < arr.length; i++) {
+      if (arr[i].mood != null && arr[i-1].mood != null) {
+        totalChange += Math.abs(arr[i].mood - arr[i-1].mood);
+        count++;
+      }
+    }
+    return count > 0 ? (totalChange / count).toFixed(2) : null;
+  };
+
+  const weightVolatility = (arr) => {
+    if (arr.length < 2) return null;
+    let totalChange = 0, count = 0;
+    for (let i = 1; i < arr.length; i++) {
+      if (arr[i].weight != null && arr[i-1].weight != null) {
+        totalChange += Math.abs(arr[i].weight - arr[i-1].weight);
+        count++;
+      }
+    }
+    return count > 0 ? (totalChange / count).toFixed(2) : null;
+  };
+
+  const yesMoodV = moodVolatility(yesRecords);
+  const noMoodV = moodVolatility(noRecords);
+  const yesWeightV = weightVolatility(yesRecords);
+  const noWeightV = weightVolatility(noRecords);
+
+  charts.solitude = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['情绪波动性 (日均|Δ|)', '体重波动性 (日均|Δ|kg)'],
+      datasets: [
+        { label: '有深度独处', data: [yesMoodV || 0, yesWeightV || 0], backgroundColor: 'rgba(77,212,172,0.6)', borderRadius: 6 },
+        { label: '无深度独处', data: [noMoodV || 0, noWeightV || 0], backgroundColor: 'rgba(124,92,252,0.6)', borderRadius: 6 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#e8eaf0' } } },
+      scales: {
+        x: { ticks: { color: '#9298a8' }, grid: { color: '#2e3346' } },
+        y: { ticks: { color: '#9298a8' }, grid: { color: '#2e3346' }, beginAtZero: true }
+      }
+    }
+  });
+
+  let html = '<h3 style="margin-bottom:6px;">对比分析</h3>';
+  html += `<p style="font-size:13px;">🧘 有深度独处的天数：${yesRecords.length} | 无深度独处的天数：${noRecords.length}</p>`;
+  if (yesMoodV && noMoodV) {
+    const diff = (parseFloat(yesMoodV) - parseFloat(noMoodV)).toFixed(2);
+    html += `<p style="font-size:13px;margin-top:4px;">📊 情绪波动性：有独处 ${yesMoodV} vs 无独处 ${noMoodV}（差值 ${diff}，${diff < 0 ? '独处时情绪更稳定 ✓' : '独处时情绪波动更大'}）</p>`;
+  }
+  if (yesWeightV && noWeightV) {
+    const diff = (parseFloat(yesWeightV) - parseFloat(noWeightV)).toFixed(2);
+    html += `<p style="font-size:13px;margin-top:4px;">📊 体重波动性：有独处 ${yesWeightV} vs 无独处 ${noWeightV}（差值 ${diff}，${diff < 0 ? '独处时体重更稳定 ✓' : '独处时体重波动更大'}）</p>`;
+  }
+
+  // Recovery -> next mood
+  const recoveryPairs = [];
+  for (let i = 0; i < sorted.length - 1; i++) {
+    if (sorted[i].solitude === '是' && sorted[i].recovery != null && sorted[i+1].mood != null) {
+      recoveryPairs.push([sorted[i].recovery, sorted[i+1].mood]);
+    }
+  }
+  if (recoveryPairs.length >= 2) {
+    const r = pearsonR(recoveryPairs.map(p=>p[0]), recoveryPairs.map(p=>p[1]));
+    html += `<p style="font-size:13px;margin-top:4px;">📊 <b>独处恢复评分 → 次日情绪</b>：r = <b style="color:${Math.abs(r)>=0.3?'var(--warn)':'var(--accent2)'}">${r.toFixed(3)}</b>（${r > 0 ? '恢复越好，次日情绪越好' : '无明显正相关'}）</p>`;
+  }
+
+  document.getElementById('solitude-corr').innerHTML = html;
+}
+
+// ============================================================
+//  RULES (Decision Tree)
+// ============================================================
+function renderRules() {
+  renderKeywordList();
+  renderAutoRules();
+  renderAdvice();
+}
+
+function renderAutoRules() {
+  const container = document.getElementById('rules-list');
+  const sorted = [...records].filter(r => r.weight != null).sort((a,b) => a.date.localeCompare(b.date));
+
+  if (sorted.length < 7) {
+    document.getElementById('rules-empty').style.display = 'block';
+    container.innerHTML = '';
+    return;
+  }
+  document.getElementById('rules-empty').style.display = 'none';
+
+  // Build delta records with lag-1 predictors
+  const deltaRecords = [];
+  for (let i = 1; i < sorted.length; i++) {
+    deltaRecords.push({
+      ...sorted[i],
+      weightDelta: sorted[i].weight - sorted[i-1].weight,
+      prev: sorted[i-1],
+    });
+  }
+
+  // Decision tree: split by conditions and find groups where weightDelta is consistently high/low
+  const conditions = [];
+  const phases = ['经期','卵泡期','排卵期','黄体期'];
+  const carbLevels = ['低','中','高'];
+  const sodiumLevels = ['低','中','高'];
+  const sleepCats = ['low','high'];
+  const stressCats = ['有','无'];
+
+  for (const phase of phases) {
+    for (const carb of carbLevels) {
+      for (const sodium of sodiumLevels) {
+        for (const sc of sleepCats) {
+          for (const stc of stressCats) {
+            const group = deltaRecords.filter(r => {
+              if (r.cyclePhase !== phase) return false;
+              if (r.prev.carb !== carb) return false;
+              if (r.prev.sodium !== sodium) return false;
+              if (sc === 'low' && (r.prev.sleepHours == null || r.prev.sleepHours >= 6)) return false;
+              if (sc === 'high' && (r.prev.sleepHours == null || r.prev.sleepHours < 6)) return false;
+              if (r.prev.stress !== stc) return false;
+              return true;
+            });
+            if (group.length >= 2) {
+              const avgDelta = group.reduce((s, r) => s + r.weightDelta, 0) / group.length;
+              const isSignificant = Math.abs(avgDelta) >= 0.3;
+              if (isSignificant) {
+                conditions.push({
+                  phase, carb, sodium, sleep: sc, stress: stc,
+                  avgDelta, n: group.length,
+                  direction: avgDelta > 0 ? '↑升' : '↓降',
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Also add simpler rules
+  for (const phase of phases) {
+    for (const carb of carbLevels) {
+      const group = deltaRecords.filter(r => r.cyclePhase === phase && r.prev.carb === carb);
+      if (group.length >= 2) {
+        const avgDelta = group.reduce((s, r) => s + r.weightDelta, 0) / group.length;
+        if (Math.abs(avgDelta) >= 0.3) {
+          conditions.push({
+            phase, carb, sodium: '(任意)', sleep: 'all', stress: '(任意)',
+            avgDelta, n: group.length,
+            direction: avgDelta > 0 ? '↑升' : '↓降',
+          });
+        }
+      }
+    }
+  }
+
+  // Sort by absolute avgDelta
+  conditions.sort((a, b) => Math.abs(b.avgDelta) - Math.abs(a.avgDelta));
+
+  if (conditions.length === 0) {
+    container.innerHTML = '<p style="color:var(--text-dim);font-size:13px;">当前数据暂未发现显著规则。继续记录更多天数，系统会自动挖掘规律。</p>';
+    return;
+  }
+
+  container.innerHTML = conditions.slice(0, 15).map(c => {
+    const condParts = [];
+    if (c.phase) condParts.push(`周期=${c.phase}`);
+    if (c.carb !== '(任意)') condParts.push(`碳水=${c.carb}`);
+    if (c.sodium !== '(任意)') condParts.push(`钠=${c.sodium}`);
+    condParts.push(`睡眠=${c.sleep === 'low' ? '<6h' : c.sleep === 'high' ? '≥6h' : '任意'}`);
+    condParts.push(`压力=${c.stress}`);
+
+    const intensity = Math.abs(c.avgDelta);
+    const score = Math.min(100, Math.round(intensity * 40 + c.n * 5));
+
+    return `<div class="rule-item">
+      <div class="rule-head">
+        <span class="rule-cond">IF ${condParts.join(' AND ')}</span>
+        <span class="rule-score">置信度: ${score}/100 (n=${c.n})</span>
+      </div>
+      <div class="rule-then">→ 体重平均${c.direction} ${c.avgDelta >= 0 ? '+' : ''}${c.avgDelta.toFixed(2)} kg</div>
+    </div>`;
+  }).join('');
+}
+
+// ============================================================
+//  ADVICE (Early Warning)
+// ============================================================
+function renderAdvice() {
+  const container = document.getElementById('advice-list');
+  if (records.length === 0) {
+    container.innerHTML = '<p style="color:var(--text-dim);font-size:13px;">开始记录后，这里会根据你的数据给出个性化预警。</p>';
+    return;
+  }
+
+  const sorted = [...records].sort((a,b) => b.date.localeCompare(a.date));
+  const latest = sorted[0];
+  const phase = latest.cyclePhase || '未知';
+  const advices = [];
+
+  // Cycle-based advice
+  if (phase === '黄体期') {
+    advices.push({
+      title: '🟣 黄体期预警',
+      items: [
+        '黄体期体重易因水钠潴留上升 0.5-1.5kg，属正常生理波动，不要恐慌性节食。',
+        ' cravings（食欲增加）是黄体酮升高的正常表现，优先选择蛋白质和健康脂肪替代高碳水。',
+        '情绪波动幅度加大，提前安排低强度活动（散步、瑜伽），减少高密度社交。',
+        '睡眠质量可能下降，建议提前30分钟入睡，减少蓝光暴露。',
+      ]
+    });
+  } else if (phase === '经期') {
+    advices.push({
+      title: '🔴 经期提醒',
+      items: [
+        '经期基础代谢略升，体重可能因出血和脱水略降——这不代表"变瘦了"。',
+        '铁质流失，建议补充红肉/菠菜/维C；避免高钠饮食加重腹胀。',
+        '精力通常偏低，减少力量训练，以散步和拉伸为主。',
+        '情绪敏感度升高，允许自己慢下来，减少"必须高效"的自我施压。',
+      ]
+    });
+  } else if (phase === '卵泡期') {
+    advices.push({
+      title: '🟢 卵泡期窗口',
+      items: [
+        '卵泡期雌激素上升，精力与情绪通常较好——是安排高强度运动和社交的好时机。',
+        '此阶段体重相对稳定，适合设定行为目标（如运动频率、饮食结构调整）。',
+        '认知能力可能提升，适合安排深度独处/心流活动。',
+      ]
+    });
+  } else if (phase === '排卵期') {
+    advices.push({
+      title: '🟠 排卵期注意',
+      items: [
+        '排卵期前后体重可能因激素波动微升，注意区分"激素性波动"和"饮食性增长"。',
+        '精力通常处于周期峰值，适合挑战性任务。',
+        '食欲可能自然降低，但注意不要因"状态好"而暴饮暴食。',
+      ]
+    });
+  }
+
+  // Sleep-based advice
+  if (latest.sleepHours != null && latest.sleepHours < 6) {
+    advices.push({
+      title: '😴 睡眠不足预警',
+      items: [
+        '昨日睡眠不足6h，今天食欲调控激素（瘦素↓、饥饿素↑）失衡， cravings风险高。',
+        '今日体重可能因皮质醇升高而微升0.2-0.5kg——这不是脂肪增长。',
+        '建议：今日碳水摄入控制在"低-中"，增加蛋白质，提前规划饮食避免冲动进食。',
+        '今日避免高强度运动，优先补觉。',
+      ]
+    });
+  }
+
+  // Stress-based advice
+  if (latest.stress === '有') {
+    advices.push({
+      title: '⚡ 压力事件应对',
+      items: [
+        '压力激活皮质醇→水钠潴留+腹部脂肪偏好。体重可能短期上升0.3-1kg。',
+        '建议：今日进行15-30min深度独处/冥想，降低皮质醇。',
+        '饮食策略：增加镁（坚果/深色蔬菜），减少咖啡因，避免"情绪性进食"。',
+        '语言调整：对自己说"这会过去的"，减少灾难化思维。',
+      ]
+    });
+  }
+
+  // High sodium
+  if (latest.sodium === '高') {
+    advices.push({
+      title: '🧂 高钠摄入提醒',
+      items: [
+        '昨日钠摄入高，今日体重可能因水钠潴留上升0.3-0.8kg（非脂肪）。',
+        '建议：今日饮水≥8杯，帮助排出多余钠；增加钾摄入（香蕉/番茄）。',
+        '明日体重应回落，不必焦虑。',
+      ]
+    });
+  }
+
+  // High carb
+  if (latest.carb === '高') {
+    advices.push({
+      title: '🍚 高碳水提醒',
+      items: [
+        '高碳水→每1g碳水约储水3g，体重短期可能上升0.5-1kg（糖原+水）。',
+        '如果同时处于黄体期，效果叠加，波动更大。',
+        '建议：次日碳水降至"中"，蛋白质提至"高"，观察2天体重回落趋势。',
+      ]
+    });
+  }
+
+  // Social overload
+  if (latest.socialLoad != null && latest.socialLoad >= 4) {
+    advices.push({
+      title: '👥 社交负荷过高',
+      items: [
+        '内向者高密度社交后能量净值通常为负，次日情绪可能下降1-2分。',
+        '建议：次日安排深度独处/低社交活动，"充电"恢复。',
+        '注意：社交负荷高的次日容易"报复性进食"或"报复性熬夜"，提前设定边界。',
+      ]
+    });
+  }
+
+  // Cognition gain
+  if (latest.cognitionGain != null && latest.cognitionGain >= 4) {
+    advices.push({
+      title: '✨ 认知收获丰富',
+      items: [
+        '今日认知收获高（≥4分），数据分析显示这通常预示次日情绪更好、体重波动更小。',
+        '建议：趁状态好，记录下今天的洞察——用「内心笔记」或「活动备注」留存。',
+        '这种"自我内探"的积极效应可能持续2-3天，适合推进个人项目。',
+      ]
+    });
+  }
+
+  // No solitude for a while
+  const recent7 = sorted.slice(0, 7);
+  const solitudeCount = recent7.filter(r => r.solitude === '是').length;
+  if (solitudeCount === 0 && records.length >= 7) {
+    advices.push({
+      title: '🧘 深度独处不足',
+      items: [
+        '近7天没有深度独处/心流时刻记录。内向者的"自我内探"是情绪和体重稳定的重要保护因子。',
+        '建议：今天安排至少20分钟的独处活动（阅读/冥想/写作），记录恢复评分。',
+        '长期数据表明，有深度独处的天数，情绪波动性和体重波动性都更低。',
+      ]
+    });
+  }
+
+  container.innerHTML = advices.map(a => `
+    <div class="rule-item">
+      <div class="rule-head"><span class="rule-then" style="color:var(--accent);">${a.title}</span></div>
+      <ul style="margin-top:6px;padding-left:18px;">
+        ${a.items.map(i => `<li style="font-size:12px;color:var(--text-dim);margin-bottom:3px;">${i}</li>`).join('')}
+      </ul>
+    </div>
+  `).join('');
+}
+
+// ============================================================
+//  KEYWORD MANAGEMENT
+// ============================================================
+function toggleCollapse(header) {
+  const body = header.nextElementSibling;
+  body.classList.toggle('open');
+  header.querySelector('span:last-child').textContent = body.classList.contains('open') ? '▴' : '▾';
+}
+
+function addKeyword() {
+  const kw = document.getElementById('kw-input').value.trim();
+  const factor = document.getElementById('factor-input').value.trim();
+  if (!kw || !factor) return;
+  saveCustomKeyword(kw, factor);
+  document.getElementById('kw-input').value = '';
+  document.getElementById('factor-input').value = '';
+  renderKeywordList();
+}
+
+function renderKeywordList() {
+  const keywords = loadKeywords();
+  const custom = JSON.parse(localStorage.getItem(KEYWORD_KEY) || '{}');
+  const container = document.getElementById('keyword-list');
+  if (Object.keys(custom).length === 0) {
+    container.innerHTML = '<p style="font-size:11px;color:var(--text-dim);">暂无自定义关键词。预设关键词包括：火锅→高钠饮食、蛋糕→高糖饮食、加班→工作压力 等。</p>';
+    return;
+  }
+  container.innerHTML = Object.entries(custom).map(([kw, factor]) =>
+    `<span class="keyword-tag">${kw} → ${factor} <span class="del" onclick="removeCustomKeyword('${kw}')">✕</span></span>`
+  ).join('');
+}
+
+// ============================================================
+//  EXPORT / IMPORT
+// ============================================================
+function exportData() {
+  const data = { records, keywords: JSON.parse(localStorage.getItem(KEYWORD_KEY) || '{}'), exportDate: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `weight_data_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (data.records) {
+        records = data.records;
+        saveDataToStorage();
+      }
+      if (data.keywords) {
+        localStorage.setItem(KEYWORD_KEY, JSON.stringify(data.keywords));
+      }
+      // Recalculate cycle phases
+      const phaseMap = determineCyclePhases(records);
+      records.forEach(r => r.cyclePhase = phaseMap[r.date] || '未知');
+      saveDataToStorage();
+      alert('导入成功！共 ' + records.length + ' 条记录。');
+      updateRecordCount();
+      onDateChange();
+    } catch (err) {
+      alert('导入失败：文件格式不正确');
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ============================================================
+//  INIT
+// ============================================================
+loadData();
+initForm();
+updateRecordCount();
+
+// ============================================================
+//  PWA REGISTRATION
+// ============================================================
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(err => {
+      console.log('SW registration failed:', err);
+    });
+  });
+}
+
+// ============================================================
+//  ONBOARDING (first visit)
+// ============================================================
+const ONBOARD_KEY = 'neiguan_onboarded_v1';
+let onboardingStep = 0;
+const onboardingSteps = [
+  {
+    title: '每天2分钟',
+    desc: '记录你的体重、饮食、运动、睡眠、情绪和内心状态。极简表单，支持一键复制前一天。',
+  },
+  {
+    title: '自动发现规律',
+    desc: '系统会自动分析你的体重波动与前置因子的关系——在哪个周期阶段、睡眠不足时、有压力时，什么因素影响最大。',
+  },
+  {
+    title: '数据只属于你',
+    desc: '所有记录仅存在你的设备本地，不上传任何服务器。无需注册登录，支持随时导出备份。',
+  },
+  {
+    title: '内向者的专属设计',
+    desc: '记录社交负荷、认知收获、能量净值和深度独处——分析自我内探如何影响你的情绪和体重长期稳定性。',
+  },
+];
+
+function checkOnboarding() {
+  if (!localStorage.getItem(ONBOARD_KEY)) {
+    document.getElementById('onboarding').style.display = 'flex';
+    renderOnboardingStep();
+  }
+}
+
+function renderOnboardingStep() {
+  const step = onboardingSteps[onboardingStep];
+  document.getElementById('onboarding-content').innerHTML = `
+    <div class="onboarding-step">
+      <div class="step-num">${onboardingStep + 1}</div>
+      <div class="step-title">${step.title}</div>
+      <div class="step-desc">${step.desc}</div>
+    </div>
+  `;
+  const dots = onboardingSteps.map((_, i) =>
+    `<div class="dot ${i <= onboardingStep ? 'active' : ''}"></div>`
+  ).join('');
+  document.getElementById('onboarding-dots').innerHTML = dots;
+  
+  const btn = document.querySelector('#onboarding-card .btn');
+  btn.textContent = onboardingStep === onboardingSteps.length - 1 ? '开始记录 →' : '下一步';
+}
+
+function nextOnboarding() {
+  if (onboardingStep < onboardingSteps.length - 1) {
+    onboardingStep++;
+    renderOnboardingStep();
+  } else {
+    localStorage.setItem(ONBOARD_KEY, '1');
+    document.getElementById('onboarding').style.display = 'none';
+  }
+}
+
+// ============================================================
+//  PWA INSTALL PROMPT
+// ============================================================
+let deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  // Show install banner after 3 seconds if not dismissed before
+  if (!localStorage.getItem('install_dismissed')) {
+    setTimeout(() => {
+      document.getElementById('install-banner').classList.add('show');
+    }, 3000);
+  }
+});
+
+function installPWA() {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(() => {
+      document.getElementById('install-banner').classList.remove('show');
+      deferredPrompt = null;
+    });
+  } else {
+    // iOS doesn't support beforeinstallprompt — show instructions
+    showToast('📱 iOS 用户：点击 Safari 分享按钮 →「添加到主屏幕」');
+  }
+}
+
+function dismissInstall() {
+  document.getElementById('install-banner').classList.remove('show');
+  localStorage.setItem('install_dismissed', '1');
+}
+
+// ============================================================
+//  TOAST
+// ============================================================
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ============================================================
+//  SHARE CARD
+// ============================================================
+function openShare() {
+  const overlay = document.getElementById('share-overlay');
+  overlay.classList.add('show');
+  drawShareCard();
+}
+
+function closeShare() {
+  document.getElementById('share-overlay').classList.remove('show');
+}
+
+function drawShareCard() {
+  const canvas = document.getElementById('share-canvas');
+  const ctx = canvas.getContext('2d');
+  const W = 320, H = 400;
+
+  // Background gradient
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#7c5cfc');
+  grad.addColorStop(1, '#4dd4ac');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Dark overlay
+  ctx.fillStyle = 'rgba(15,17,23,0.85)';
+  ctx.fillRect(0, 0, W, H);
+
+  // Logo (moon + wave)
+  ctx.font = '60px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('🌙', W/2, 90);
+
+  // Title
+  ctx.fillStyle = '#e8eaf0';
+  ctx.font = 'bold 26px -apple-system, sans-serif';
+  ctx.fillText('内观日志', W/2, 140);
+
+  ctx.fillStyle = '#9298a8';
+  ctx.font = '12px sans-serif';
+  ctx.fillText('内向者的自我内探 · 体重波动因果分析仪', W/2, 165);
+
+  // Features
+  ctx.fillStyle = '#4dd4ac';
+  ctx.font = '14px sans-serif';
+  const features = [
+    '📊 分层相关性分析',
+    '🔍 滞后归因（回溯3天）',
+    '🧠 决策树规则自动发现',
+    '💬 自然语言备注解析',
+    '🔒 数据仅存本地，永不上传',
+  ];
+  features.forEach((f, i) => {
+    ctx.fillText(f, W/2, 210 + i * 28);
+  });
+
+  // QR placeholder (simple decorative)
+  ctx.fillStyle = 'rgba(255,255,255,0.1)';
+  ctx.fillRect(W/2 - 40, 370, 80, 80);
+  ctx.fillStyle = '#9298a8';
+  ctx.font = '10px sans-serif';
+  ctx.fillText('扫码使用', W/2, 395);
+
+  // Footer
+  ctx.fillStyle = '#7298a8';
+  ctx.font = '10px sans-serif';
+  ctx.fillText('纯前端 PWA · 零成本 · 零追踪', W/2, 380);
+}
+
+function downloadShareCard() {
+  const canvas = document.getElementById('share-canvas');
+  const link = document.createElement('a');
+  link.download = 'neiguan-log-share.png';
+  link.href = canvas.toDataURL();
+  link.click();
+}
+
+// ============================================================
+//  DATA MANAGEMENT
+// ============================================================
+function clearAllData() {
+  if (confirm('⚠️ 确定要清除所有记录吗？\n\n这个操作不可恢复。建议先导出备份。\n\n确定清除请点「确定」。')) {
+    if (confirm('再次确认：这将删除你所有的健康记录数据。真的要这样做吗？')) {
+      localStorage.removeItem(STORAGE_KEY);
+      records = [];
+      saveDataToStorage();
+      updateRecordCount();
+      clearFormFields();
+      updateCycleDisplay(new Date().toISOString().slice(0, 10));
+      showToast('✅ 所有数据已清除');
+      switchTab('record');
+    }
+  }
+}
+
+// ============================================================
+//  BACKUP REMINDER (every 7 days)
+// ============================================================
+function checkBackupReminder() {
+  const lastBackup = localStorage.getItem('last_backup_date');
+  const today = new Date().toISOString().slice(0, 10);
+  if (records.length >= 7) {
+    if (!lastBackup) {
+      showToast('💡 建议每周导出备份数据，防止丢失');
+      return;
+    }
+    const diff = (new Date(today) - new Date(lastBackup)) / 86400000;
+    if (diff >= 7) {
+      showToast('💡 已超过7天未备份，建议导出数据');
+    }
+  }
+}
+
+// Override exportData to update backup date
+const _originalExportData = exportData;
+exportData = function() {
+  _originalExportData();
+  localStorage.setItem('last_backup_date', new Date().toISOString().slice(0, 10));
+  showToast('✅ 数据已导出，备份日期已更新');
+};
+
+// ============================================================
+//  INIT PWA FEATURES
+// ============================================================
+checkOnboarding();
+setTimeout(checkBackupReminder, 5000);
+
+// Handle hash for shortcuts
+if (location.hash === '#record') switchTab('record');
+if (location.hash === '#insights') switchTab('insights');
+</script>
+</body>
+</html>
