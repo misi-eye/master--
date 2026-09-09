@@ -182,6 +182,31 @@ table.data-table tr.target-row { background: rgba(240,160,80,0.12); }
 .factor-chip input { accent-color: var(--accent); }
 .factor-chip.active { border-color: var(--accent); background: rgba(124,92,252,0.1); }
 
+/* Multi-select chip lists (sports / flow activities) */
+.multi-chip-list {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  max-height: 180px; overflow-y: auto; padding: 6px;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--surface2);
+}
+.multi-chip-list .chip-cat {
+  width: 100%; font-size: 11px; color: var(--accent2); font-weight: 600;
+  margin-top: 6px; padding-bottom: 2px; border-bottom: 1px dashed var(--border);
+}
+.multi-chip-list .chip-cat:first-child { margin-top: 0; }
+.multi-chip-list .factor-chip.disabled { opacity: 0.35; pointer-events: none; }
+.multi-chip-list .factor-chip.none-chip { border-color: var(--warn); color: var(--warn); }
+.multi-chip-list .factor-chip.none-chip.active { background: rgba(240,160,80,0.12); border-color: var(--warn); }
+
+/* Export dropdown */
+.export-dropdown { position: relative; display: inline-block; }
+.export-menu {
+  position: absolute; right: 0; top: 100%; margin-top: 4px; z-index: 300;
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 4px; display: flex; flex-direction: column; gap: 2px; min-width: 120px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+.export-menu .icon-btn { width: 100%; text-align: left; }
+
 /* Keyword panel */
 .collapse-panel {
   border: 1px solid var(--border); border-radius: 8px; margin-top: 16px; overflow: hidden;
@@ -351,9 +376,15 @@ table.data-table tr.target-row { background: rgba(240,160,80,0.12); }
   </nav>
   <div class="header-actions">
     <button class="icon-btn" onclick="openShare()">🔗 分享</button>
-    <button class="icon-btn" onclick="exportData()">⬇ 导出</button>
+    <div class="export-dropdown">
+      <button class="icon-btn" onclick="toggleExportMenu()">⬇ 导出 ▾</button>
+      <div class="export-menu" id="export-menu" style="display:none;">
+        <button class="icon-btn" onclick="exportData();toggleExportMenu()">导出 JSON</button>
+        <button class="icon-btn" onclick="exportCSV();toggleExportMenu()">导出 CSV</button>
+      </div>
+    </div>
     <button class="icon-btn" onclick="document.getElementById('import-file').click()">⬆ 导入</button>
-    <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+    <input type="file" id="import-file" accept=".json,.csv" style="display:none" onchange="importData(event)">
   </div>
 </div>
 </header>
@@ -415,19 +446,10 @@ table.data-table tr.target-row { background: rgba(240,160,80,0.12); }
 
     <h3>🏃 运动与身体活动</h3>
     <div class="form-grid">
-      <div class="form-group">
-        <label>运动类型</label>
-        <select id="f-exercise" onchange="toggleExercise()">
-          <option value="无">无</option>
-          <option value="有氧-长跑">有氧-长跑</option>
-          <option value="有氧-太极">有氧-太极</option>
-          <option value="有氧-骑行">有氧-骑行</option>
-          <option value="混合-跳舞">混合-跳舞</option>
-          <option value="力量">力量</option>
-          <option value="瑜伽">瑜伽</option>
-          <option value="拉伸">拉伸</option>
-          <option value="散步">散步</option>
-        </select>
+      <div class="form-group full">
+        <label>运动类型（可多选，共 100 项）</label>
+        <div class="multi-chip-list sport-chips" id="f-exercise-chips"></div>
+        <input type="hidden" id="f-exercise-none" value="">
       </div>
       <div class="form-group">
         <label>运动时长 (min)</label>
@@ -534,19 +556,9 @@ table.data-table tr.target-row { background: rgba(240,160,80,0.12); }
       </div>
       <div id="solitude-fields" style="display:none;">
         <div class="form-grid">
-          <div class="form-group">
-            <label>活动类型</label>
-            <select id="f-solitudeType">
-              <option value="">-</option>
-              <option value="阅读">阅读</option>
-              <option value="冥想">冥想</option>
-              <option value="写作">写作</option>
-              <option value="编程">编程</option>
-              <option value="绘画">绘画</option>
-              <option value="散步">散步</option>
-              <option value="听音乐">听音乐</option>
-              <option value="其他">其他</option>
-            </select>
+          <div class="form-group full">
+            <label>活动类型（可多选，共 100 项）</label>
+            <div class="multi-chip-list flow-chips" id="f-solitudeType-chips"></div>
           </div>
           <div class="form-group">
             <label>沉浸时长 (min)</label>
@@ -770,12 +782,15 @@ table.data-table tr.target-row { background: rgba(240,160,80,0.12); }
           <label>导出数据备份</label>
           <div class="hint">建议每周导出一次，保存到安全位置</div>
         </div>
-        <button class="btn secondary" onclick="exportData()">⬇ 导出 JSON</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn secondary" onclick="exportData()">⬇ 导出 JSON</button>
+          <button class="btn secondary" onclick="exportCSV()">⬇ 导出 CSV</button>
+        </div>
       </div>
       <div class="row">
         <div>
           <label>导入备份数据</label>
-          <div class="hint">从导出的 JSON 文件恢复</div>
+          <div class="hint">从导出的 JSON 或 CSV 文件恢复</div>
         </div>
         <button class="btn secondary" onclick="document.getElementById('import-file').click()">⬆ 导入</button>
       </div>
@@ -848,6 +863,53 @@ table.data-table tr.target-row { background: rgba(240,160,80,0.12); }
 // ============================================================
 const STORAGE_KEY = 'weight_cause_data_v1';
 const KEYWORD_KEY = 'weight_cause_keywords_v1';
+
+// ============================================================
+//  SPORTS_100 — Top 100 主流运动（有氧/无氧/混合/柔韧）
+//  格式：value = "-{cat}-{name}"，如 "-有氧-长跑"
+// ============================================================
+const SPORTS_100 = [
+  // 有氧（45项）
+  {name:'长跑',cat:'有氧'},{name:'慢跑',cat:'有氧'},{name:'快走',cat:'有氧'},{name:'公路骑行',cat:'有氧'},{name:'山地骑行',cat:'有氧'},
+  {name:'自由泳',cat:'有氧'},{name:'蛙泳',cat:'有氧'},{name:'蝶泳',cat:'有氧'},{name:'仰泳',cat:'有氧'},{name:'跳绳',cat:'有氧'},
+  {name:'有氧操',cat:'有氧'},{name:'健身操',cat:'有氧'},{name:'动感单车',cat:'有氧'},{name:'椭圆机',cat:'有氧'},{name:'划船机',cat:'有氧'},
+  {name:'爬楼梯',cat:'有氧'},{name:'徒步',cat:'有氧'},{name:'登山',cat:'有氧'},{name:'越野跑',cat:'有氧'},{name:'铁人三项',cat:'有氧'},
+  {name:'皮划艇',cat:'有氧'},{name:'桨板',cat:'有氧'},{name:'冲浪',cat:'有氧'},{name:'双板滑雪',cat:'有氧'},{name:'单板滑雪',cat:'有氧'},
+  {name:'滑冰',cat:'有氧'},{name:'轮滑',cat:'有氧'},{name:'攀冰',cat:'有氧'},{name:'篮球',cat:'有氧'},{name:'足球',cat:'有氧'},
+  {name:'网球',cat:'有氧'},{name:'羽毛球',cat:'有氧'},{name:'乒乓球',cat:'有氧'},{name:'排球',cat:'有氧'},{name:'橄榄球',cat:'有氧'},
+  {name:'垒球',cat:'有氧'},{name:'曲棍球',cat:'有氧'},{name:'高尔夫',cat:'有氧'},{name:'门球',cat:'有氧'},{name:'壁球',cat:'有氧'},
+  {name:'短跑',cat:'有氧'},{name:'跨栏',cat:'有氧'},{name:'竞走',cat:'有氧'},{name:'越野滑雪',cat:'有氧'},{name:'滑水',cat:'有氧'},
+  // 无氧/力量（30项）
+  {name:'力量训练',cat:'无氧'},{name:'举铁',cat:'无氧'},{name:'哑铃训练',cat:'无氧'},{name:'杠铃深蹲',cat:'无氧'},{name:'硬拉',cat:'无氧'},
+  {name:'卧推',cat:'无氧'},{name:'引体向上',cat:'无氧'},{name:'俯卧撑',cat:'无氧'},{name:'平板支撑',cat:'无氧'},{name:'壶铃训练',cat:'无氧'},
+  {name:'战绳',cat:'无氧'},{name:'TRX悬挂训练',cat:'无氧'},{name:'健美',cat:'无氧'},{name:'健力',cat:'无氧'},{name:'推举',cat:'无氧'},
+  {name:'高位下拉',cat:'无氧'},{name:'坐姿划船',cat:'无氧'},{name:'腿举',cat:'无氧'},{name:'箭步蹲',cat:'无氧'},{name:'保加利亚分腿蹲',cat:'无氧'},
+  {name:'罗马尼亚硬拉',cat:'无氧'},{name:'臀桥',cat:'无氧'},{name:'臂屈伸',cat:'无氧'},{name:'弯举',cat:'无氧'},{name:'双杠臂屈伸',cat:'无氧'},
+  {name:'攀岩',cat:'无氧'},{name:'抱石',cat:'无氧'},{name:'体操',cat:'无氧'},{name:'街头健身',cat:'无氧'},{name:'CrossFit',cat:'无氧'},
+  // 混合（15项）
+  {name:'HIIT',cat:'混合'},{name:'跳舞',cat:'混合'},{name:'街舞',cat:'混合'},{name:'芭蕾',cat:'混合'},{name:'爵士舞',cat:'混合'},
+  {name:'拉丁舞',cat:'混合'},{name:'尊巴',cat:'混合'},{name:'搏击操',cat:'混合'},{name:'LES MILLS',cat:'混合'},{name:'综合体能',cat:'混合'},
+  {name:'功能训练',cat:'混合'},{name:'Cross训练',cat:'混合'},{name:'军事体能',cat:'混合'},{name:'障碍赛',cat:'混合'},{name:'短间歇训练',cat:'混合'},
+  // 柔韧/身心（10项）
+  {name:'瑜伽',cat:'柔韧'},{name:'拉伸',cat:'柔韧'},{name:'太极',cat:'柔韧'},{name:'八段锦',cat:'柔韧'},{name:'五禽戏',cat:'柔韧'},
+  {name:'普拉提',cat:'柔韧'},{name:'阴瑜伽',cat:'柔韧'},{name:'冥想瑜伽',cat:'柔韧'},{name:'流瑜伽',cat:'柔韧'},{name:'关节活动度训练',cat:'柔韧'},
+];
+
+// ============================================================
+//  FLOW_ACTIVITIES_100 — Top 100 主流心流活动
+// ============================================================
+const FLOW_ACTIVITIES_100 = [
+  '深度阅读','写作','日记','编程','绘画','书法','冥想','正念','瑜伽冥想','乐器练习',
+  '作曲','编曲','摄影','木工','陶艺','研究学习','语言学习','解题','复盘','策划',
+  '建筑设计','游戏设计','UI设计','平面设计','插画','自然观察','园艺','茶道','花艺','香道',
+  '手账','拼图','乐高','模型制作','刺绣','编织','雕刻','篆刻','剪纸','泥塑',
+  '视频剪辑','动画制作','播客录制','视频创作','配音','诗歌','小说','剧本','学术写作','文献综述',
+  '深度思考','散步冥想','森林浴','独处旅行','书法临帖','古籍研读','哲学思辨','历史研究','考古研究','地图绘制',
+  '手工皮具','银饰制作','金属工艺','琉璃制作','扎染','蜡染','编织挂毯','钩针','十字绣','羊毛毡',
+  '盆景','插花','微缩景观','沙盘','棋艺','围棋','象棋','国际象棋','桥牌','魔方',
+  '速写','水彩','油画','国画','版画','篆刻印章','烙画','沙画','流体画','数字绘画',
+  '声音设计','电子音乐','古典吉他','钢琴练习','小提琴','古琴','尺八','手碟','口琴','天文观测',
+];
 
 // Preset keyword mappings
 const PRESET_KEYWORDS = {
@@ -1049,7 +1111,117 @@ function getAllDerivedFactors() {
 // ============================================================
 //  FORM HANDLING
 // ============================================================
+
+// --- 多选 chip 渲染 ---
+function renderSportChips() {
+  const box = document.getElementById('f-exercise-chips');
+  if (!box) return;
+  const cats = ['有氧','无氧','混合','柔韧'];
+  let html = `<label class="factor-chip none-chip" id="sport-none-chip"><input type="checkbox" onchange="onSportNoneToggle(this)"> 无运动</label>`;
+  cats.forEach(cat => {
+    html += `<div class="chip-cat">${cat}</div>`;
+    SPORTS_100.filter(s => s.cat === cat).forEach(s => {
+      const v = `-${cat}-${s.name}`;
+      html += `<label class="factor-chip sport-chip"><input type="checkbox" value="${v}" onchange="onSportChipToggle(this)"> ${cat}-${s.name}</label>`;
+    });
+  });
+  box.innerHTML = html;
+}
+
+function renderFlowChips() {
+  const box = document.getElementById('f-solitudeType-chips');
+  if (!box) return;
+  let html = '';
+  // 分 10 组，每组 10 项，加分类标题提升可读性
+  const groups = ['创作表达','艺术视觉','身心修养','学习研究','手工技艺','影音视听','游戏棋艺','绘画美术','音乐演奏','科技自然'];
+  FLOW_ACTIVITIES_100.forEach((name, i) => {
+    if (i % 10 === 0) html += `<div class="chip-cat">${groups[i / 10]}</div>`;
+    html += `<label class="factor-chip flow-chip"><input type="checkbox" value="${name}"> ${name}</label>`;
+  });
+  box.innerHTML = html;
+}
+
+// 读取已选运动数组
+function getSelectedSports() {
+  const chips = document.querySelectorAll('#f-exercise-chips .sport-chip input:checked');
+  return Array.from(chips).map(c => c.value);
+}
+// 读取已选心流活动数组
+function getSelectedFlow() {
+  const chips = document.querySelectorAll('#f-solitudeType-chips .flow-chip input:checked');
+  return Array.from(chips).map(c => c.value);
+}
+
+// 回填运动 chip 勾选（兼容旧字符串数据）
+function setSportChips(val) {
+  let arr = Array.isArray(val) ? val : (val && val !== '无' ? [val] : []);
+  // 旧数据兼容：
+  //  "有氧-长跑" → "-有氧-长跑"
+  //  "力量"/"瑜伽"/"拉伸"/"散步" → 尝试按名称匹配 "-{cat}-{name}"
+  const allChipInputs = Array.from(document.querySelectorAll('#f-exercise-chips .sport-chip input'));
+  arr = arr.map(v => {
+    if (!v) return v;
+    if (v.startsWith('-')) return v;          // 已是新格式
+    if (v.includes('-')) return '-' + v;     // 旧 "有氧-长跑" → "-有氧-长跑"
+    // 旧 "力量"/"瑜伽" 等：按 chip 标签文本匹配
+    const match = allChipInputs.find(inp => inp.value.endsWith('-' + v));
+    return match ? match.value : v;
+  });
+  allChipInputs.forEach(c => {
+    c.checked = arr.includes(c.value);
+    c.closest('.factor-chip').classList.toggle('active', c.checked);
+  });
+  const noneChip = document.querySelector('#sport-none-chip input');
+  if (noneChip) {
+    noneChip.checked = arr.length === 0;
+    noneChip.closest('.factor-chip').classList.toggle('active', arr.length === 0);
+    applySportNoneState(noneChip);
+  }
+}
+
+// 回填心流 chip 勾选（兼容旧字符串数据）
+function setFlowChips(val) {
+  let arr = Array.isArray(val) ? val : (val ? [val] : []);
+  document.querySelectorAll('#f-solitudeType-chips .flow-chip input').forEach(c => {
+    c.checked = arr.includes(c.value);
+    c.closest('.factor-chip').classList.toggle('active', c.checked);
+  });
+}
+
+// "无运动"勾选时禁用其他，取消时恢复
+function applySportNoneState(noneCheckbox) {
+  const checked = noneCheckbox.checked;
+  const noneChip = noneCheckbox.closest('.factor-chip');
+  noneChip.classList.toggle('active', checked);
+  document.querySelectorAll('#f-exercise-chips .sport-chip').forEach(chip => {
+    chip.classList.toggle('disabled', checked);
+    if (checked) {
+      const inp = chip.querySelector('input');
+      inp.checked = false;
+      chip.classList.remove('active');
+    }
+  });
+}
+function onSportNoneToggle(noneCheckbox) { applySportNoneState(noneCheckbox); updateExercisePlaceholder(); }
+function onSportChipToggle(checkbox) {
+  checkbox.closest('.factor-chip').classList.toggle('active', checkbox.checked);
+  // 选中任意运动时取消"无运动"
+  if (checkbox.checked) {
+    const noneInp = document.querySelector('#sport-none-chip input');
+    if (noneInp) { noneInp.checked = false; noneInp.closest('.factor-chip').classList.remove('active'); }
+  }
+  updateExercisePlaceholder();
+}
+
+function updateExercisePlaceholder() {
+  const durEl = document.getElementById('f-exerciseDuration');
+  const sel = getSelectedSports();
+  durEl.placeholder = sel.length === 0 ? '无运动' : '如 30';
+}
+
 function initForm() {
+  renderSportChips();
+  renderFlowChips();
   const today = new Date().toISOString().slice(0, 10);
   document.getElementById('f-date').value = today;
   currentEditDate = today;
@@ -1076,7 +1248,7 @@ function loadFormForDate(date) {
     setFieldValue('f-sodium', existing.sodium || '');
     setFieldValue('f-water', existing.water || '');
     setFieldValue('f-dietNote', existing.dietNote || '');
-    setFieldValue('f-exercise', existing.exercise || '无');
+    setSportChips(existing.exercise);
     setFieldValue('f-exerciseDuration', existing.exerciseDuration || '');
     setFieldValue('f-sleepHours', existing.sleepHours || '');
     setFieldValue('f-stress', existing.stress || '无');
@@ -1084,7 +1256,7 @@ function loadFormForDate(date) {
     setFieldValue('f-energyNet', existing.energyNet || 0);
     document.getElementById('energyNetVal').textContent = existing.energyNet || 0;
     setFieldValue('f-solitude', existing.solitude || '否');
-    setFieldValue('f-solitudeType', existing.solitudeType || '');
+    setFlowChips(existing.solitudeType);
     setFieldValue('f-solitudeDuration', existing.solitudeDuration || '');
     setFieldValue('f-dailyNote', existing.dailyNote || '');
     setFieldValue('f-activityNote', existing.activityNote || '');
@@ -1116,11 +1288,11 @@ function clearFormFields() {
   setFieldValue('f-carb', '');
   setFieldValue('f-protein', '');
   setFieldValue('f-sodium', '');
-  setFieldValue('f-exercise', '无');
+  setSportChips([]);
+  setFlowChips([]);
   setFieldValue('f-stress', '无');
   setFieldValue('f-energyNet', 0);
   setFieldValue('f-solitude', '否');
-  setFieldValue('f-solitudeType', '');
   document.getElementById('energyNetVal').textContent = '0';
   ['sleepQuality','mood','energy','socialLoad','cognitionGain','recovery'].forEach(f => clearRating(f));
 }
@@ -1152,15 +1324,14 @@ function getRatingVal(field) {
 }
 
 function toggleExercise() {
-  // could hide duration if no exercise
-  const ex = document.getElementById('f-exercise').value;
-  const durEl = document.getElementById('f-exerciseDuration');
-  durEl.placeholder = ex === '无' ? '无运动' : '如 30';
+  updateExercisePlaceholder();
 }
 
 function toggleSolitude() {
   const val = document.getElementById('f-solitude').value;
-  document.getElementById('solitude-fields').style.display = val === '是' ? 'block' : 'none';
+  const fields = document.getElementById('solitude-fields');
+  fields.style.display = val === '是' ? 'block' : 'none';
+  if (val !== '是') setFlowChips([]);
 }
 
 function copyPrevDay() {
@@ -1200,7 +1371,7 @@ function saveRecord() {
     sodium: document.getElementById('f-sodium').value,
     water: parseInt(document.getElementById('f-water').value) || 0,
     dietNote: document.getElementById('f-dietNote').value,
-    exercise: document.getElementById('f-exercise').value,
+    exercise: getSelectedSports(),
     exerciseDuration: parseInt(document.getElementById('f-exerciseDuration').value) || 0,
     sleepHours: parseFloat(document.getElementById('f-sleepHours').value) || null,
     sleepQuality: getRatingVal('sleepQuality'),
@@ -1213,7 +1384,7 @@ function saveRecord() {
     energyNet: parseInt(document.getElementById('f-energyNet').value),
     activityNote: document.getElementById('f-activityNote').value,
     solitude: document.getElementById('f-solitude').value,
-    solitudeType: document.getElementById('f-solitude').value === '是' ? document.getElementById('f-solitudeType').value : '',
+    solitudeType: document.getElementById('f-solitude').value === '是' ? getSelectedFlow() : [],
     solitudeDuration: document.getElementById('f-solitude').value === '是' ? parseInt(document.getElementById('f-solitudeDuration').value) || 0 : 0,
     recovery: document.getElementById('f-solitude').value === '是' ? getRatingVal('recovery') : null,
     dailyNote: document.getElementById('f-dailyNote').value,
@@ -1347,7 +1518,7 @@ function renderHistory() {
   document.getElementById('history-empty').style.display = 'none';
   document.getElementById('history-table').style.display = '';
 
-  const cols = ['日期','周期','体重Δ','出血','碳水','蛋白','钠','水','运动','时长','睡眠h','睡质','情绪','精力','压力','社交','认知','能量净值','独处','恢复','因子'];
+  const cols = ['日期','周期','体重Δ','出血','碳水','蛋白','钠','水','运动','时长','睡眠h','睡质','情绪','精力','压力','社交','认知','能量净值','独处','心流活动','恢复','因子'];
   const head = document.getElementById('history-head');
   head.innerHTML = cols.map(c => `<th>${c}</th>`).join('');
 
@@ -1368,8 +1539,8 @@ function renderHistory() {
       <td>${r.protein||'-'}</td>
       <td>${r.sodium||'-'}</td>
       <td>${r.water||0}</td>
-      <td>${r.exercise||'-'}</td>
-      <td>${r.exercise&&r.exercise!=='无'?(r.exerciseDuration||'-'):'-'}</td>
+      <td>${(() => { const a = Array.isArray(r.exercise) ? r.exercise : (r.exercise && r.exercise !== '无' ? [r.exercise] : []); return a.length ? a.join('、') : '-'; })()}</td>
+      <td>${(() => { const a = Array.isArray(r.exercise) ? r.exercise : (r.exercise && r.exercise !== '无' ? [r.exercise] : []); return a.length ? (r.exerciseDuration||'-') : '-'; })()}</td>
       <td>${r.sleepHours||'-'}</td>
       <td>${r.sleepQuality||'-'}</td>
       <td>${r.mood||'-'}</td>
@@ -1379,6 +1550,7 @@ function renderHistory() {
       <td>${r.cognitionGain||'-'}</td>
       <td>${r.energyNet||0}</td>
       <td>${r.solitude||'-'}</td>
+      <td style="font-size:10px;">${(() => { if (r.solitude !== '是') return '-'; const a = Array.isArray(r.solitudeType) ? r.solitudeType : (r.solitudeType ? [r.solitudeType] : []); return a.length ? a.join('、') : '-'; })()}</td>
       <td>${r.solitude==='是'?(r.recovery||'-'):'-'}</td>
       <td style="font-size:10px;">${factors}</td>
     </tr>`;
@@ -1664,8 +1836,8 @@ function applyFilters(arr) {
     if (sleep === '<6' && (r.sleepHours == null || r.sleepHours >= 6)) return false;
     if (sleep === '>=6' && (r.sleepHours == null || r.sleepHours < 6)) return false;
     if (stress && r.stress !== stress) return false;
-    if (exercise === '有' && (!r.exercise || r.exercise === '无')) return false;
-    if (exercise === '无' && r.exercise && r.exercise !== '无') return false;
+    if (exercise === '有' && (Array.isArray(r.exercise) ? r.exercise.length === 0 : (!r.exercise || r.exercise === '无'))) return false;
+    if (exercise === '无' && (Array.isArray(r.exercise) ? r.exercise.length > 0 : (r.exercise && r.exercise !== '无'))) return false;
     if (solitude && r.solitude !== solitude) return false;
     // selected derived factors (AND logic)
     if (selectedFactors.length > 0) {
@@ -2343,6 +2515,11 @@ function renderKeywordList() {
 // ============================================================
 //  EXPORT / IMPORT
 // ============================================================
+function toggleExportMenu() {
+  const menu = document.getElementById('export-menu');
+  if (menu) menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
+}
+
 function exportData() {
   const data = { records, keywords: JSON.parse(localStorage.getItem(KEYWORD_KEY) || '{}'), exportDate: new Date().toISOString() };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -2354,32 +2531,229 @@ function exportData() {
   URL.revokeObjectURL(url);
 }
 
+// --- CSV 导出 ---
+// 列顺序：29 列，覆盖所有 record 字段
+const CSV_HEADERS = ['日期','周期','体重kg','体重Δ','出血','碳水','蛋白','钠','饮水杯','饮食备注','运动','运动时长min','睡眠h','睡质','情绪','精力','压力','压力备注','社交','认知','能量净值','活动备注','深度独处','心流活动','心流时长min','恢复评分','日常备注','内心笔记','派生因子'];
+
+// 把任意值转成 CSV 安全单元格字符串（RFC4180）
+function csvEscape(val) {
+  if (val == null) return '';
+  let s;
+  if (Array.isArray(val)) {
+    s = val.join('、');
+  } else if (typeof val === 'number') {
+    s = String(val);
+  } else {
+    s = String(val);
+  }
+  // 含逗号/引号/换行 → 用双引号包裹，内部引号转义为 ""
+  if (/[",\n\r]/.test(s)) {
+    s = '"' + s.replace(/"/g, '""') + '"';
+  }
+  return s;
+}
+
+function normArr(val) {
+  if (Array.isArray(val)) return val;
+  if (val == null || val === '') return [];
+  if (val === '无') return [];
+  return [val];
+}
+
+function exportCSV() {
+  const sorted = [...records].sort((a,b) => a.date.localeCompare(b.date));
+  const lines = [];
+  // BOM + 表头
+  lines.push('\uFEFF' + CSV_HEADERS.map(csvEscape).join(','));
+  sorted.forEach((r, i) => {
+    const prev = sorted[i-1];
+    const weightDelta = prev && prev.weight && r.weight ? (r.weight - prev.weight).toFixed(1) : '';
+    const exerciseArr = normArr(r.exercise);
+    const flowArr = normArr(r.solitudeType);
+    const row = [
+      r.date,
+      r.cyclePhase || '未知',
+      r.weight != null ? r.weight : '',
+      weightDelta,
+      r.bleeding || '无',
+      r.carb || '',
+      r.protein || '',
+      r.sodium || '',
+      r.water != null ? r.water : '',
+      r.dietNote || '',
+      exerciseArr.join('、'),
+      exerciseArr.length > 0 ? (r.exerciseDuration || 0) : '',
+      r.sleepHours != null ? r.sleepHours : '',
+      r.sleepQuality != null ? r.sleepQuality : '',
+      r.mood != null ? r.mood : '',
+      r.energy != null ? r.energy : '',
+      r.stress || '无',
+      r.stressNote || '',
+      r.socialLoad != null ? r.socialLoad : '',
+      r.cognitionGain != null ? r.cognitionGain : '',
+      r.energyNet != null ? r.energyNet : 0,
+      r.activityNote || '',
+      r.solitude || '否',
+      flowArr.join('、'),
+      (r.solitude === '是') ? (r.solitudeDuration || 0) : '',
+      (r.solitude === '是' && r.recovery != null) ? r.recovery : '',
+      r.dailyNote || '',
+      r.innerNote || '',
+      (r.derivedFactors || []).join(', '),
+    ];
+    lines.push(row.map(csvEscape).join(','));
+  });
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `weight_data_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// --- CSV 导入（RFC4180 解析）---
+function parseCSV(text) {
+  // 去掉 BOM
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  const rows = [];
+  let row = [];
+  let field = '';
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (text[i+1] === '"') { field += '"'; i++; }
+        else { inQuotes = false; }
+      } else {
+        field += ch;
+      }
+    } else {
+      if (ch === '"') {
+        inQuotes = true;
+      } else if (ch === ',') {
+        row.push(field); field = '';
+      } else if (ch === '\n') {
+        row.push(field); field = '';
+        rows.push(row); row = [];
+      } else if (ch === '\r') {
+        // 忽略，由 \n 处理
+      } else {
+        field += ch;
+      }
+    }
+  }
+  // 末行
+  if (field.length > 0 || row.length > 0) { row.push(field); rows.push(row); }
+  return rows;
+}
+
+function importCSV(text) {
+  const rows = parseCSV(text);
+  if (rows.length < 2) throw new Error('CSV 行数不足');
+  const headers = rows[0];
+  // 建立列名→索引映射
+  const idx = {};
+  headers.forEach((h, i) => { idx[h.trim()] = i; });
+  const get = (row, name) => {
+    const i = idx[name];
+    return (i != null && row[i] != null) ? row[i].trim() : '';
+  };
+  const toNum = (s) => s === '' ? null : Number(s);
+  const toInt = (s) => s === '' ? 0 : parseInt(s) || 0;
+
+  const imported = [];
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r];
+    if (!row || row.length === 0) continue;
+    const date = get(row, '日期');
+    if (!date) continue;
+    const exerciseStr = get(row, '运动');
+    const exerciseArr = exerciseStr ? exerciseStr.split('、').map(s => s.trim()).filter(Boolean) : [];
+    const flowStr = get(row, '心流活动');
+    const flowArr = flowStr ? flowStr.split('、').map(s => s.trim()).filter(Boolean) : [];
+    const solitudeVal = get(row, '深度独处') || '否';
+
+    const rec = {
+      date,
+      cyclePhase: get(row, '周期') || '未知',
+      weight: toNum(get(row, '体重kg')),
+      bleeding: get(row, '出血') || '无',
+      carb: get(row, '碳水'),
+      protein: get(row, '蛋白'),
+      sodium: get(row, '钠'),
+      water: toInt(get(row, '饮水杯')),
+      dietNote: get(row, '饮食备注'),
+      exercise: exerciseArr,
+      exerciseDuration: toInt(get(row, '运动时长min')),
+      sleepHours: toNum(get(row, '睡眠h')),
+      sleepQuality: toInt(get(row, '睡质')),
+      mood: toInt(get(row, '情绪')),
+      energy: toInt(get(row, '精力')),
+      stress: get(row, '压力') || '无',
+      stressNote: get(row, '压力备注'),
+      socialLoad: toInt(get(row, '社交')),
+      cognitionGain: toInt(get(row, '认知')),
+      energyNet: toInt(get(row, '能量净值')),
+      activityNote: get(row, '活动备注'),
+      solitude: solitudeVal,
+      solitudeType: solitudeVal === '是' ? flowArr : [],
+      solitudeDuration: solitudeVal === '是' ? toInt(get(row, '心流时长min')) : 0,
+      recovery: solitudeVal === '是' ? toInt(get(row, '恢复评分')) : null,
+      dailyNote: get(row, '日常备注'),
+      innerNote: get(row, '内心笔记'),
+      derivedFactors: [],
+    };
+    // 重算 derivedFactors
+    const allNotes = [rec.dietNote, rec.dailyNote, rec.activityNote, rec.innerNote, rec.stressNote].join(' ');
+    rec.derivedFactors = parseDerivedFactors(allNotes);
+    imported.push(rec);
+  }
+  return imported;
+}
+
 function importData(event) {
   const file = event.target.files[0];
   if (!file) return;
   const reader = new FileReader();
   reader.onload = (e) => {
     try {
-      const data = JSON.parse(e.target.result);
-      if (data.records) {
-        records = data.records;
+      const text = e.target.result;
+      const name = (file.name || '').toLowerCase();
+      // 分流：.csv 或首行含"日期" → CSV；否则 JSON
+      const looksCSV = name.endsWith('.csv') || (text.trim().startsWith('日期') || text.charCodeAt(0) === 0xFEFF && text.slice(1).trim().startsWith('日期'));
+      if (looksCSV) {
+        records = importCSV(text);
         saveDataToStorage();
+        const phaseMap = determineCyclePhases(records);
+        records.forEach(r => r.cyclePhase = phaseMap[r.date] || '未知');
+        saveDataToStorage();
+        alert('导入成功！共 ' + records.length + ' 条记录（CSV）。');
+      } else {
+        const data = JSON.parse(text);
+        if (data.records) {
+          records = data.records;
+          saveDataToStorage();
+        }
+        if (data.keywords) {
+          localStorage.setItem(KEYWORD_KEY, JSON.stringify(data.keywords));
+        }
+        const phaseMap = determineCyclePhases(records);
+        records.forEach(r => r.cyclePhase = phaseMap[r.date] || '未知');
+        saveDataToStorage();
+        alert('导入成功！共 ' + records.length + ' 条记录。');
       }
-      if (data.keywords) {
-        localStorage.setItem(KEYWORD_KEY, JSON.stringify(data.keywords));
-      }
-      // Recalculate cycle phases
-      const phaseMap = determineCyclePhases(records);
-      records.forEach(r => r.cyclePhase = phaseMap[r.date] || '未知');
-      saveDataToStorage();
-      alert('导入成功！共 ' + records.length + ' 条记录。');
       updateRecordCount();
       onDateChange();
     } catch (err) {
-      alert('导入失败：文件格式不正确');
+      console.error(err);
+      alert('导入失败：文件格式不正确（' + (err.message || '未知错误') + '）');
     }
   };
   reader.readAsText(file);
+  // 清空 input value 允许重复导入同一文件
+  event.target.value = '';
 }
 
 // ============================================================
@@ -2617,13 +2991,26 @@ function checkBackupReminder() {
   }
 }
 
-// Override exportData to update backup date
+// Override export functions to update backup date
 const _originalExportData = exportData;
 exportData = function() {
   _originalExportData();
   localStorage.setItem('last_backup_date', new Date().toISOString().slice(0, 10));
-  showToast('✅ 数据已导出，备份日期已更新');
+  showToast('✅ 数据已导出（JSON），备份日期已更新');
 };
+const _originalExportCSV = exportCSV;
+exportCSV = function() {
+  _originalExportCSV();
+  localStorage.setItem('last_backup_date', new Date().toISOString().slice(0, 10));
+  showToast('✅ 数据已导出（CSV），备份日期已更新');
+};
+
+// 点击页面其他位置关闭导出下拉菜单
+document.addEventListener('click', (e) => {
+  const dd = document.querySelector('.export-dropdown');
+  const menu = document.getElementById('export-menu');
+  if (menu && dd && !dd.contains(e.target)) menu.style.display = 'none';
+});
 
 // ============================================================
 //  INIT PWA FEATURES
