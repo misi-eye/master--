@@ -866,7 +866,7 @@ const KEYWORD_KEY = 'weight_cause_keywords_v1';
 
 // ============================================================
 //  SPORTS_100 — Top 100 主流运动（有氧/无氧/混合/柔韧）
-//  格式：value = "-{cat}-{name}"，如 "-有氧-长跑"
+//  格式：value = "{cat}-{name}"，如 "有氧-长跑"（与心流活动一致，不带前导 -）
 // ============================================================
 const SPORTS_100 = [
   // 有氧（45项）
@@ -911,6 +911,115 @@ const FLOW_ACTIVITIES_100 = [
   '声音设计','电子音乐','古典吉他','钢琴练习','小提琴','古琴','尺八','手碟','口琴','天文观测',
 ];
 
+// ============================================================
+//  运动值归一化
+//  统一为 "{分类}-{名称}"（如 "有氧-长跑"），与心流活动格式一致（无前导 -）
+//  兼容历史格式：有氧-长跑 / -有氧-长跑 / 长跑 / 力量 / 含异常字符(Excel 前缀 '、* 等)
+//  无法匹配分类的归入 "其他"
+// ============================================================
+const SPORT_CATS = ['有氧','无氧','混合','柔韧','其他'];
+
+// 旧值/俗称 → 标准 "分类-名称" 别名表（兜底历史数据）
+const SPORT_ALIASES = {
+  '力量': '无氧-力量训练',
+  '举铁': '无氧-举铁',
+  '器械': '无氧-力量训练',
+  '健身': '无氧-力量训练',
+  '撸铁': '无氧-举铁',
+  '瑜伽': '柔韧-瑜伽',
+  '拉伸': '柔韧-拉伸',
+  '散步': '有氧-快走',
+  '走路': '有氧-快走',
+  '跑步': '有氧-长跑',
+  '慢跑': '有氧-慢跑',
+  '骑行': '有氧-公路骑行',
+  '骑车': '有氧-公路骑行',
+  '游泳': '有氧-自由泳',
+  '太极': '柔韧-太极',
+  '跳舞': '混合-跳舞',
+  '广场舞': '混合-跳舞',
+  '爬山': '有氧-登山',
+  '徒步': '有氧-徒步',
+  'HIIT': '混合-HIIT',
+  'hiit': '混合-HIIT',
+  '拉伸放松': '柔韧-拉伸',
+  '冥想': '柔韧-冥想瑜伽',
+  '普拉提': '柔韧-普拉提',
+  '跳绳': '有氧-跳绳',
+  '球类': '有氧-篮球',
+  '羽毛球': '有氧-羽毛球',
+  '篮球': '有氧-篮球',
+  '足球': '有氧-足球',
+};
+
+// 分类关键词 → 类别（当值只有分类词时兜底）
+const CAT_HINTS = {
+  '有氧': '有氧', '无氧': '无氧', '力量': '无氧', '抗阻': '无氧', '混合': '混合', '柔韧': '柔韧', '拉伸': '柔韧', '身心': '柔韧',
+};
+
+// 清洗单个运动值：去 Excel 文本前缀、星号等异常字符、首尾空白
+function cleanExerciseToken(raw) {
+  if (raw == null) return '';
+  let s = String(raw);
+  // 去 Excel 强制文本前缀（单引号/全角单引号）与常见异常字符
+  s = s.replace(/^[\s'‘’`]+/, '');
+  s = s.replace(/[*＊]+/g, '');
+  s = s.replace(/^[\s\-—–]+/, '');   // 去所有前导 - 及空白
+  s = s.replace(/[\s]+$/g, '');
+  // 全角连字符归一为半角
+  s = s.replace(/[－—–]/g, '-');
+  return s.trim();
+}
+
+// 归一化单个运动值为 "{分类}-{名称}"；匹配不到则返回 "其他-{原名}"
+function normalizeExerciseValue(raw) {
+  const s = cleanExerciseToken(raw);
+  if (!s) return '';
+  // 已带分类前缀？（如 "有氧-长跑"）
+  const parts = s.split('-').map(p => p.trim()).filter(Boolean);
+  if (parts.length >= 2 && SPORT_CATS.includes(parts[0])) {
+    const cat = parts[0];
+    const name = parts.slice(1).join('-');
+    // 分类+名称都命中
+    const hit = SPORTS_100.find(x => x.cat === cat && x.name === name);
+    if (hit) return `${cat}-${hit.name}`;
+    // 分类命中但名称不属于该类别：尝试跨类别按名称匹配（修正历史脏数据，如 "有氧-太极" → "柔韧-太极"）
+    const cross = SPORTS_100.find(x => x.name === name);
+    if (cross) return `${cross.cat}-${cross.name}`;
+    // 都匹配不上：保留原分类+名称
+    return `${cat}-${name}`;
+  }
+  const nameOnly = parts.length >= 1 ? parts.join('-') : s;
+
+  // 1) 别名表精确匹配
+  if (SPORT_ALIASES[nameOnly]) return SPORT_ALIASES[nameOnly];
+
+  // 2) 在 SPORTS_100 中按名称精确匹配
+  const hit = SPORTS_100.find(x => x.name === nameOnly);
+  if (hit) return `${hit.cat}-${hit.name}`;
+
+  // 3) 名称是分类词（如 "有氧"/"力量"）：归入该类别，取该类首项
+  if (CAT_HINTS[nameOnly]) {
+    const cat = CAT_HINTS[nameOnly];
+    const first = SPORTS_100.find(x => x.cat === cat);
+    return first ? `${cat}-${first.name}` : `其他-${nameOnly}`;
+  }
+
+  // 4) 全部匹配失败 → 归入"其他"
+  return `其他-${nameOnly}`;
+}
+
+// 归一化运动数组（同时去重、去空）
+function normalizeExerciseArray(val) {
+  let arr = Array.isArray(val) ? val : (val == null || val === '' || val === '无' ? [] : [val]);
+  const out = [];
+  arr.forEach(v => {
+    const n = normalizeExerciseValue(v);
+    if (n && !out.includes(n)) out.push(n);
+  });
+  return out;
+}
+
 // Preset keyword mappings
 const PRESET_KEYWORDS = {
   '火锅': '高钠饮食', '烧烤': '高钠饮食', '外卖': '高钠饮食', '腌制品': '高钠饮食',
@@ -944,6 +1053,36 @@ function loadData() {
 
 function saveDataToStorage() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+}
+
+// ============================================================
+//  历史数据自动迁移（幂等）
+//  页面加载时执行：先归一化运动格式，再重算派生因子。
+//  仅当结果与旧值不同时才写回，避免无意义写入。
+// ============================================================
+function migrateAllRecords() {
+  let changed = false;
+  for (const r of records) {
+    // 1) 归一化运动格式：统一为 "{分类}-{名称}" 的数组
+    const newEx = normalizeExerciseArray(r.exercise);
+    const oldExJson = JSON.stringify(r.exercise);   // 原值（可能是字符串/数组/undefined）
+    const newExJson = JSON.stringify(newEx);
+    // 仅当原值不是数组、或内容不同时才写回
+    if (!Array.isArray(r.exercise) || oldExJson !== newExJson) {
+      r.exercise = newEx;
+      changed = true;
+    }
+
+    // 2) 重算派生因子（依赖归一化后的运动格式）
+    const oldFactors = Array.isArray(r.derivedFactors) ? r.derivedFactors : [];
+    const newFactors = computeDerivedFactors(r);
+    if (JSON.stringify(oldFactors) !== JSON.stringify(newFactors)) {
+      r.derivedFactors = newFactors;
+      changed = true;
+    }
+  }
+  if (changed) saveDataToStorage();
+  return changed;
 }
 
 function loadKeywords() {
@@ -1100,6 +1239,53 @@ function parseDerivedFactors(note) {
   return factors;
 }
 
+// ============================================================
+//  结构化字段派生因子（在文本关键词解析基础上追加）
+//   出血量非"无"        → 经期
+//   运动数组非空        → 运动 + (有氧运动/无氧运动/混合运动/柔韧运动)
+//   深度独处 = 是       → 深度独处
+//   压力标记 = 有       → 压力事件
+// ============================================================
+function deriveFactorsFromFields(record) {
+  const out = [];
+  if (!record) return out;
+  const push = (f) => { if (f && !out.includes(f)) out.push(f); };
+
+  // 1) 经期：出血量非"无"且非空
+  const bleeding = (record.bleeding || '').trim();
+  if (bleeding && bleeding !== '无') push('经期');
+
+  // 2) 运动：数组非空（归一化后判断），并按分类派生
+  const exArr = normalizeExerciseArray(record.exercise);
+  if (exArr.length > 0) {
+    push('运动');
+    const catMap = { '有氧': '有氧运动', '无氧': '无氧运动', '混合': '混合运动', '柔韧': '柔韧运动' };
+    exArr.forEach(v => {
+      const cat = String(v).split('-')[0];
+      if (catMap[cat]) push(catMap[cat]);
+    });
+  }
+
+  // 3) 深度独处
+  if (record.solitude === '是') push('深度独处');
+
+  // 4) 压力事件
+  if (record.stress === '有') push('压力事件');
+
+  return out;
+}
+
+// 合并：文本关键词解析结果 + 结构化字段派生结果（去重，文本优先）
+function computeDerivedFactors(record) {
+  if (!record) return [];
+  const allNotes = [record.dietNote, record.dailyNote, record.activityNote, record.innerNote, record.stressNote].join(' ');
+  const textFactors = parseDerivedFactors(allNotes);
+  const fieldFactors = deriveFactorsFromFields(record);
+  const merged = [...textFactors];
+  fieldFactors.forEach(f => { if (!merged.includes(f)) merged.push(f); });
+  return merged;
+}
+
 function getAllDerivedFactors() {
   const allFactors = new Set();
   for (const r of records) {
@@ -1121,7 +1307,8 @@ function renderSportChips() {
   cats.forEach(cat => {
     html += `<div class="chip-cat">${cat}</div>`;
     SPORTS_100.filter(s => s.cat === cat).forEach(s => {
-      const v = `-${cat}-${s.name}`;
+      // 格式与心流活动对齐：一级大类-二级小类（不带前导 -）
+      const v = `${cat}-${s.name}`;
       html += `<label class="factor-chip sport-chip"><input type="checkbox" value="${v}" onchange="onSportChipToggle(this)"> ${cat}-${s.name}</label>`;
     });
   });
@@ -1152,21 +1339,10 @@ function getSelectedFlow() {
   return Array.from(chips).map(c => c.value);
 }
 
-// 回填运动 chip 勾选（兼容旧字符串数据）
+// 回填运动 chip 勾选（兼容各种历史格式，统一归一化）
 function setSportChips(val) {
-  let arr = Array.isArray(val) ? val : (val && val !== '无' ? [val] : []);
-  // 旧数据兼容：
-  //  "有氧-长跑" → "-有氧-长跑"
-  //  "力量"/"瑜伽"/"拉伸"/"散步" → 尝试按名称匹配 "-{cat}-{name}"
+  const arr = normalizeExerciseArray(val);
   const allChipInputs = Array.from(document.querySelectorAll('#f-exercise-chips .sport-chip input'));
-  arr = arr.map(v => {
-    if (!v) return v;
-    if (v.startsWith('-')) return v;          // 已是新格式
-    if (v.includes('-')) return '-' + v;     // 旧 "有氧-长跑" → "-有氧-长跑"
-    // 旧 "力量"/"瑜伽" 等：按 chip 标签文本匹配
-    const match = allChipInputs.find(inp => inp.value.endsWith('-' + v));
-    return match ? match.value : v;
-  });
   allChipInputs.forEach(c => {
     c.checked = arr.includes(c.value);
     c.closest('.factor-chip').classList.toggle('active', c.checked);
@@ -1391,9 +1567,8 @@ function saveRecord() {
     innerNote: document.getElementById('f-innerNote').value,
   };
 
-  // Parse derived factors from all text notes
-  const allNotes = [record.dietNote, record.dailyNote, record.activityNote, record.innerNote, record.stressNote].join(' ');
-  record.derivedFactors = parseDerivedFactors(allNotes);
+  // 派生因子 = 文本关键词解析 + 结构化字段派生
+  record.derivedFactors = computeDerivedFactors(record);
 
   // Update cycle phase
   record.cyclePhase = getCyclePhase(date);
@@ -2535,16 +2710,25 @@ function exportData() {
 // 列顺序：29 列，覆盖所有 record 字段
 const CSV_HEADERS = ['日期','周期','体重kg','体重Δ','出血','碳水','蛋白','钠','饮水杯','饮食备注','运动','运动时长min','睡眠h','睡质','情绪','精力','压力','压力备注','社交','认知','能量净值','活动备注','深度独处','心流活动','心流时长min','恢复评分','日常备注','内心笔记','派生因子'];
 
-// 把任意值转成 CSV 安全单元格字符串（RFC4180）
+// 把任意值转成 CSV 安全单元格字符串（RFC4180 + Excel 防公式）
 function csvEscape(val) {
   if (val == null) return '';
   let s;
+  let isNumber = false;
   if (Array.isArray(val)) {
     s = val.join('、');
   } else if (typeof val === 'number') {
     s = String(val);
+    isNumber = true;
   } else {
     s = String(val);
+    // 纯数字字符串（含负号/小数）也按数值处理，不做防公式前缀
+    if (/^-?\d+(\.\d+)?$/.test(s)) isNumber = true;
+  }
+  // Excel 防公式注入：以 = + - @ 制表符 回车 开头的文本单元格会被当公式解析（显示 #），
+  // 前置单引号强制识别为文本。数值（含负数）不处理。
+  if (!isNumber && /^[=+\-@\t\r]/.test(s)) {
+    s = "'" + s;
   }
   // 含逗号/引号/换行 → 用双引号包裹，内部引号转义为 ""
   if (/[",\n\r]/.test(s)) {
@@ -2568,7 +2752,7 @@ function exportCSV() {
   sorted.forEach((r, i) => {
     const prev = sorted[i-1];
     const weightDelta = prev && prev.weight && r.weight ? (r.weight - prev.weight).toFixed(1) : '';
-    const exerciseArr = normArr(r.exercise);
+    const exerciseArr = normalizeExerciseArray(r.exercise);
     const flowArr = normArr(r.solitudeType);
     const row = [
       r.date,
@@ -2670,7 +2854,10 @@ function importCSV(text) {
     const date = get(row, '日期');
     if (!date) continue;
     const exerciseStr = get(row, '运动');
-    const exerciseArr = exerciseStr ? exerciseStr.split('、').map(s => s.trim()).filter(Boolean) : [];
+    // 导入：先清洗 Excel 文本前缀/异常字符，再归一化为 "{分类}-{名称}"
+    const exerciseArr = exerciseStr
+      ? normalizeExerciseArray(exerciseStr.split('、').map(s => s.trim()).filter(Boolean))
+      : [];
     const flowStr = get(row, '心流活动');
     const flowArr = flowStr ? flowStr.split('、').map(s => s.trim()).filter(Boolean) : [];
     const solitudeVal = get(row, '深度独处') || '否';
@@ -2705,9 +2892,8 @@ function importCSV(text) {
       innerNote: get(row, '内心笔记'),
       derivedFactors: [],
     };
-    // 重算 derivedFactors
-    const allNotes = [rec.dietNote, rec.dailyNote, rec.activityNote, rec.innerNote, rec.stressNote].join(' ');
-    rec.derivedFactors = parseDerivedFactors(allNotes);
+    // 重算 derivedFactors（文本 + 结构化字段）
+    rec.derivedFactors = computeDerivedFactors(rec);
     imported.push(rec);
   }
   return imported;
@@ -2760,6 +2946,7 @@ function importData(event) {
 //  INIT
 // ============================================================
 loadData();
+migrateAllRecords();   // 先归一化运动格式 + 重算派生因子（幂等）
 initForm();
 updateRecordCount();
 
