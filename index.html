@@ -246,6 +246,38 @@ table.data-table tr.target-row { background: rgba(240,160,80,0.12); }
 .sub-section { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--border); }
 .sub-section h3 { font-size: 13px; color: var(--accent); margin-bottom: 8px; }
 
+/* Factor Analysis Engine */
+.filter-block {
+  margin: 14px 0; padding: 14px;
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+}
+.filter-block h3 { font-size: 13px; margin-bottom: 10px; color: var(--accent); font-weight: 600; }
+.filter-block select {
+  background: var(--surface); border: 1px solid var(--border); color: var(--text);
+  padding: 6px 10px; border-radius: 6px; font-size: 13px; min-width: 100px;
+}
+.filter-block input[type="number"] {
+  background: var(--surface); border: 1px solid var(--border); color: var(--text);
+  padding: 6px 8px; border-radius: 6px; font-size: 13px; width: 90px;
+}
+.filter-rule { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; }
+.filter-rule select { font-size: 12px; padding: 4px 8px; }
+.factor-group { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px; }
+.factor-group b { color: var(--accent); margin-right: 6px; font-size: 12px; }
+
+/* 4-Level Advice Cards */
+.advice-card {
+  padding: 12px 14px; margin-bottom: 8px;
+  border-left: 3px solid; border-radius: 6px;
+  background: var(--surface2);
+}
+.advice-card[data-level="warning"]  { border-color: var(--danger); background: rgba(240,101,101,0.06); }
+.advice-card[data-level="cycle"]    { border-color: #6aa7ff; background: rgba(106,167,255,0.06); }
+.advice-card[data-level="trend"]    { border-color: var(--warn);   background: rgba(240,160,80,0.06); }
+.advice-card[data-level="positive"] { border-color: var(--accent2); background: rgba(77,212,172,0.06); }
+.advice-card .advice-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.advice-card .advice-body  { font-size: 12px; color: var(--text-dim); line-height: 1.6; }
+
 /* Summary stats */
 .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
 .stat-card {
@@ -637,47 +669,54 @@ table.data-table tr.target-row { background: rgba(240,160,80,0.12); }
       <div class="chart-container"><canvas id="weight-diff-chart"></canvas></div>
     </div>
 
-    <!-- Condition filter -->
+    <!-- 通用因子分析引擎 -->
     <div class="insight-section">
-      <h2>🎛 条件筛选器</h2>
-      <p style="font-size:12px;color:var(--text-dim);margin-bottom:10px;">手动组合条件，实时查看该条件下的变量关系图。</p>
-      <div class="filter-panel">
-        <div class="filter-item">
-          <label>周期阶段</label>
-          <select id="filter-cycle"><option value="">全部</option><option value="经期">经期</option><option value="卵泡期">卵泡期</option><option value="排卵期">排卵期</option><option value="黄体期">黄体期</option></select>
-        </div>
-        <div class="filter-item">
-          <label>睡眠时长</label>
-          <select id="filter-sleep"><option value="">全部</option><option value="<6">&lt;6h</option><option value=">=6">≥6h</option></select>
-        </div>
-        <div class="filter-item">
-          <label>压力事件</label>
-          <select id="filter-stress"><option value="">全部</option><option value="有">有</option><option value="无">无</option></select>
-        </div>
-        <div class="filter-item">
-          <label>运动</label>
-          <select id="filter-exercise"><option value="">全部</option><option value="有">有</option><option value="无">无</option></select>
-        </div>
-        <div class="filter-item">
-          <label>深度独处</label>
-          <select id="filter-solitude"><option value="">全部</option><option value="是">有</option><option value="否">无</option></select>
-        </div>
-        <button class="btn" onclick="renderFilteredChart()">应用筛选</button>
-      </div>
-      <!-- Derived factor checkboxes -->
-      <div style="margin-top:12px;">
-        <label style="font-size:12px;">自然语言解析因子（勾选后按因子分组）：</label>
-        <div class="factor-list" id="factor-list"></div>
-      </div>
-      <div class="chart-container"><canvas id="filtered-chart"></canvas></div>
-      <div id="filter-summary" style="font-size:12px;color:var(--text-dim);margin-top:8px;"></div>
-    </div>
+      <h2>🔬 通用因子分析引擎</h2>
+      <p style="font-size:12px;color:var(--text-dim);margin-bottom:10px;">
+        选择目标变量与分析因子，添加自定义筛选条件，实时查看相关系数。
+        样本量 &lt; 5 时结果仅供参考；|r| ≥ 0.5 视为强相关，0.3-0.5 中等，0.1-0.3 弱，&lt; 0.1 可忽略。
+      </p>
 
-    <!-- Layered correlation -->
-    <div class="insight-section">
-      <h2>📐 分层相关性分析</h2>
-      <p style="font-size:12px;color:var(--text-dim);margin-bottom:10px;">三层嵌套维度：①生理周期阶段 ②睡眠质量(&lt;6h / ≥6h) ③压力事件(有/无)。在各层级下分别计算各变量与体重差分的相关性。</p>
-      <div id="layered-corr"></div>
+      <!-- 区块 A：动态筛选规则 -->
+      <div class="filter-block">
+        <h3>🎛 筛选条件（可选，AND 关系）</h3>
+        <p style="font-size:11px;color:var(--text-dim);margin:4px 0 8px;">提示：睡眠时长筛选用十分档（0/1/2/.../8 h，&gt;8 h）；相关性计算时统一按 &lt;6h / ≥6h 二分类。</p>
+        <div id="filter-rules"></div>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button class="btn secondary" onclick="addFilterRule()">+ 添加规则</button>
+          <button class="btn secondary" onclick="clearFilterRules()">清空</button>
+        </div>
+      </div>
+
+      <!-- 区块 B：目标变量 -->
+      <div class="filter-block">
+        <h3>🎯 目标变量（单选）</h3>
+        <select id="target-var" onchange="renderFactorSelector();runFactorAnalysis();">
+          <option value="weightDelta">体重日间变化量（默认）</option>
+          <option value="nextWeightDelta">次日体重变化量</option>
+          <option value="nextMood">次日情绪</option>
+          <option value="nextEnergy">次日精力</option>
+        </select>
+      </div>
+
+      <!-- 区块 C：分析因子 -->
+      <div class="filter-block">
+        <h3>📊 分析因子（多选）</h3>
+        <p style="font-size:11px;color:var(--text-dim);margin:4px 0 8px;">主因子参与相关性计算；派生因子按 0/1 二值化参与。</p>
+        <div id="factor-selector"></div>
+      </div>
+
+      <!-- 结果表格 -->
+      <div class="filter-block">
+        <div id="analysis-sample-info" style="font-size:12px;color:var(--text-dim);margin-bottom:8px;"></div>
+        <div style="overflow-x:auto;">
+          <table class="data-table" id="factor-analysis-table">
+            <thead><tr><th style="text-align:left;">分析因子</th><th>r</th><th>相关度</th><th>方向</th><th>配对数</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <p style="font-size:11px;color:var(--text-dim);margin-top:8px;">相关度分层为经验性参考标准，具体解读请结合样本量与实际背景。</p>
+      </div>
     </div>
 
     <!-- Cognition -> next day mood -> long-term weight -->
@@ -1908,9 +1947,11 @@ function renderInsights() {
 
   renderSummaryStats();
   renderWeightDiffChart();
-  renderFactorList();
-  renderFilteredChart();
-  renderLayeredCorrelation();
+  // 通用因子分析引擎（替代原条件筛选器+分层相关性）
+  renderFilterRules();
+  renderFactorSelector();
+  runFactorAnalysis();
+  // 保留模块
   renderCognitionChart();
   renderSolitudeChart();
 }
@@ -2081,18 +2122,180 @@ function renderFilteredChart() {
 }
 
 // ============================================================
-//  LAYERED CORRELATION
+//  FACTOR ANALYSIS ENGINE — 统一因子分类与阈值
+// ============================================================
+
+// 样本量与置信度阈值（全局统一）
+const CORR_MIN_N = 2;          // < 2 不计算
+const CORR_REFERENCE_N = 5;    // 2≤n<5 标注"仅供参考"
+const RULE_MIN_N = 3;          // 规则生成的最小样本量
+const RULE_MIN_ABS_R = 0.2;    // 规则生成最小 |r|
+const RULE_MAX_COUNT = 30;     // 最多展示规则数
+const HIGH_CONF_SCORE = 70;    // 高置信度规则阈值（用于预警触发）
+
+// 相关度强弱标签（|r| 分级）
+const R_LABELS = [
+  { min: 0.5, label: '强',   color: 'var(--danger)' },
+  { min: 0.3, label: '中等', color: 'var(--warn)'   },
+  { min: 0.1, label: '弱',   color: 'var(--accent2)' },
+  { min: 0.0, label: '可忽略', color: 'var(--text-dim)' },
+];
+function rLabel(absR) {
+  for (const t of R_LABELS) if (absR >= t.min) return t;
+  return R_LABELS[R_LABELS.length - 1];
+}
+
+// 有序值映射（主因子用）
+const ORD_MAP = { '低': 1, '中': 2, '高': 3 };
+
+// 睡眠时长 → 十分档（0/1/2/3/4/5/6/7/8/>8）
+const SLEEP_DECILES = [0,1,2,3,4,5,6,7,8];
+function sleepDecile(h) {
+  if (h == null) return null;
+  return Math.round(Math.max(0, Math.min(8, h)));
+}
+function sleepBin(h) {
+  // 二值化：<6h → 0（睡眠不足），≥6h → 1（正常）
+  // 保留旧字符串版以兼容外部调用；但在 MAIN_FACTORS 走数值版 sleepBin01
+  return (h == null) ? null : (h < 6 ? '<6h' : '≥6h');
+}
+function sleepBin01(h) {
+  // Pearson 友好的二值版本：<6h → 0，≥6h → 1
+  return (h == null) ? null : (h < 6 ? 0 : 1);
+}
+
+// 结果变量 Y（统一反向 lag-1：X=前日因子, Y=当日结果；第一条因无 i-1 被排除）
+// - 体重：Y = weight(i) - weight(i-1)，最后一条作为结果被消费不排除
+// - 情绪/精力：Y = mood(i) / energy(i)
+// - 不引入正向 lag；最后一条不剔除
+const TARGET_VARS = {
+  weightDelta:    { label: '体重日间变化量', compute: (rec, prev) => (prev && rec.weight != null && prev.weight != null) ? (rec.weight - prev.weight) : null },
+  nextWeightDelta:{ label: '次日体重变化量', compute: (rec, prev) => (prev && rec.weight != null && prev.weight != null) ? (rec.weight - prev.weight) : null },
+  nextMood:       { label: '次日情绪',       compute: (rec) => rec.mood != null ? rec.mood : null },
+  nextEnergy:     { label: '次日精力',       compute: (rec) => rec.energy != null ? rec.energy : null },
+};
+
+// 目标变量对应的"自相关因子"：当 Y 含该字段时，X 应剔除同名字段避免自相关
+const TARGET_EXCLUDE_FACTORS = {
+  weightDelta:     [],
+  nextWeightDelta: [],
+  nextMood:        ['mood'],
+  nextEnergy:      ['energy'],
+};
+
+// 主因子 X（参与相关性计算）
+const MAIN_FACTORS = {
+  carb:             { label: '碳水',     ord: ORD_MAP },
+  protein:          { label: '蛋白质',   ord: ORD_MAP },
+  sodium:           { label: '钠摄入',   ord: ORD_MAP },
+  water:            { label: '饮水',     ord: null },
+  sleepHours:       { label: '睡眠时长', ord: null, special: 'sleepBin01' },
+  sleepQuality:     { label: '睡眠质量', ord: null },
+  mood:             { label: '情绪',     ord: null },
+  energy:           { label: '精力',     ord: null },
+  exerciseDuration: { label: '运动时长', ord: null },
+  energyNet:        { label: '能量净值', ord: null },
+};
+function getMainFactorValue(rec, key) {
+  const f = MAIN_FACTORS[key];
+  if (!f) return null;
+  let v = rec[key];
+  if (v == null) return null;
+  if (f.special === 'sleepBin01') v = sleepBin01(v);
+  if (f.ord) v = f.ord[v] != null ? f.ord[v] : null;
+  return v;
+}
+
+// 调节因子 M（用于规则分组）
+const MODERATORS = {
+  cyclePhase:    { label: '周期阶段',  group: 'enum' },
+  stress:        { label: '压力',      group: 'enum2' },
+  solitude:      { label: '深度独处',  group: 'enum2' },
+  socialLoad:    { label: '社交负荷',  group: 'ordinal' },
+  cognitionGain: { label: '认知收获',  group: 'ordinal' },
+};
+
+// 派生因子（独立 0/1 二值化参与相关性 + 规则分组）
+const DERIVED_FACTOR_LIST = [
+  '经期', '运动', '有氧运动', '无氧运动', '混合运动', '柔韧运动',
+  '深度独处', '压力事件',
+  '高钠饮食', '酒精摄入', '咖啡因摄入', '睡眠不足', '工作压力', '情绪冲突', '环境变化', '身心练习',
+];
+
+// 筛选字段元数据（区块 A 用）
+const FILTER_SCHEMA = {
+  '主因子': {
+    carb:           { label: '碳水',     type: 'enum',  values: ['低','中','高'] },
+    protein:        { label: '蛋白',     type: 'enum',  values: ['低','中','高'] },
+    sodium:         { label: '钠',       type: 'enum',  values: ['低','中','高'] },
+    water:          { label: '饮水',     type: 'num'   },
+    sleepHours:     { label: '睡眠时长', type: 'sleepDecile' },
+    sleepQuality:   { label: '睡眠质量', type: 'num'   },
+    mood:           { label: '情绪',     type: 'num'   },
+    energy:         { label: '精力',     type: 'num'   },
+    exerciseDuration:{label: '运动时长', type: 'num'   },
+    energyNet:      { label: '能量净值', type: 'num'   },
+  },
+  '调节因子': {
+    cyclePhase:  { label: '周期阶段', type: 'enum', values: ['经期','卵泡期','排卵期','黄体期','未知'] },
+    stress:      { label: '压力',     type: 'enum', values: ['有','无'] },
+    solitude:    { label: '深度独处', type: 'enum', values: ['是','否'] },
+    socialLoad:  { label: '社交负荷', type: 'num' },
+    cognitionGain:{label: '认知收获', type: 'num' },
+    derivedFactors: { label: '派生因子', type: 'derived' },
+  },
+};
+const OPS_ENUM = ['=', '≠'];
+const OPS_NUM  = ['=', '≠', '>', '<', '≥', '≤'];
+const OPS_DECILE = ['=', '≠'];
+const OPS_DERIVED = ['包含', '不包含'];
+
+// 派生因子的"科学依据"评分（置信度公式的第三项 0~1）
+const SCI_EVIDENCE = {
+  sodium: 1.0, carb: 0.9, protein: 0.7, water: 0.6,
+  sleepHours: 0.85, sleepQuality: 0.8,
+  mood: 0.7, energy: 0.65,
+  exerciseDuration: 0.75, energyNet: 0.5,
+  // 派生因子
+  '经期': 1.0, '运动': 0.7, '有氧运动': 0.6, '无氧运动': 0.6, '混合运动': 0.55, '柔韧运动': 0.5,
+  '深度独处': 0.7, '压力事件': 0.85,
+  '高钠饮食': 1.0, '酒精摄入': 0.95, '咖啡因摄入': 0.85, '睡眠不足': 0.9,
+  '工作压力': 0.85, '情绪冲突': 0.7, '环境变化': 0.5, '身心练习': 0.6,
+};
+
+// 评分：|r|*40 + min(n/10,1)*30 + sci*30
+function computeConfScore(r, n, sci) {
+  const rPct = Math.min(1, Math.abs(r));      // |r| 0~1
+  const nPct = Math.min(1, n / 10);           // n 0~10 归一
+  return Math.round(rPct * 40 + nPct * 30 + (sci != null ? sci : 0.5) * 30);
+}
+function scoreLabel(s) {
+  if (s >= 70) return '高';
+  if (s >= 50) return '中';
+  return '低';
+}
+
+// ============================================================
+//  LAYERED CORRELATION (legacy wrapper — 保留供历史导出)
 // ============================================================
 function pearsonR(x, y) {
   const n = x.length;
   if (n < 2) return null;
-  const mx = x.reduce((a,b)=>a+b,0)/n;
-  const my = y.reduce((a,b)=>a+b,0)/n;
-  let num = 0, dx = 0, dy = 0;
+  // 过滤非有限值（NaN/Infinity）+ 同步两侧
+  const xs = [], ys = [];
   for (let i = 0; i < n; i++) {
-    num += (x[i]-mx)*(y[i]-my);
-    dx += (x[i]-mx)**2;
-    dy += (y[i]-my)**2;
+    const a = +x[i], b = +y[i];
+    if (Number.isFinite(a) && Number.isFinite(b)) { xs.push(a); ys.push(b); }
+  }
+  if (xs.length < 2) return null;
+  const m = xs.length;
+  const mx = xs.reduce((a,b)=>a+b,0)/m;
+  const my = ys.reduce((a,b)=>a+b,0)/m;
+  let num = 0, dx = 0, dy = 0;
+  for (let i = 0; i < m; i++) {
+    num += (xs[i]-mx)*(ys[i]-my);
+    dx += (xs[i]-mx)**2;
+    dy += (ys[i]-my)**2;
   }
   const denom = Math.sqrt(dx*dy);
   return denom === 0 ? null : num/denom;
@@ -2224,6 +2427,522 @@ function renderLayeredCorrelation() {
       </table>
     </div>
   `).join('');
+}
+
+// ============================================================
+//  FACTOR ANALYSIS ENGINE — 构建对齐记录 + 筛选 + 相关性
+// ============================================================
+
+// 根据目标变量，构建带对齐上下文的记录（保留 deltaRecords 结构但扩展）
+// 每条记录带 prev/next（用于不同 lag 的 Y 计算）
+function buildAlignedRecords(targetKey) {
+  const sorted = [...records].sort((a,b) => a.date.localeCompare(b.date));
+  const result = [];
+  for (let i = 0; i < sorted.length; i++) {
+    const cur = sorted[i];
+    const prev = i > 0 ? sorted[i-1] : null;  // i=0 无 i-1 → 排除；最后一条作为结果被消费不排除
+    const yVal = TARGET_VARS[targetKey].compute(cur, prev, null);
+    if (yVal == null) continue;
+    // 统一反向 lag-1：X 源 = prev（前日），Y 源 = cur（当日结果）
+    result.push({ ...cur, _prev: prev, _y: yVal, _yKey: targetKey });
+  }
+  return result;
+}
+
+// 派生因子的 0/1 二值化（直接读 record.derivedFactors）
+function hasDerivedFactor(rec, name) {
+  return Array.isArray(rec.derivedFactors) && rec.derivedFactors.includes(name);
+}
+
+// 应用单条筛选规则
+function matchFilterRule(rec, rule) {
+  const { field, op, value } = rule;
+  // 派生因子：value 是因子名
+  if (field === 'derivedFactors') {
+    const has = hasDerivedFactor(rec, value);
+    return op === '包含' ? has : !has;
+  }
+  let v = rec[field];
+  if (v == null) return false;
+  if (field === 'sleepHours') v = sleepDecile(v);  // 十分档
+  // 比较
+  const num = parseFloat(value);
+  switch (op) {
+    case '=':  return v == value;
+    case '≠':  return v != value;
+    case '>':  return v > num;
+    case '<':  return v < num;
+    case '≥':  return v >= num;
+    case '≤':  return v <= num;
+    default:   return true;
+  }
+}
+
+// 应用所有筛选规则（AND）
+let _filterRules = [];   // [{field, op, value}, ...]
+function applyAllFilterRules(arr) {
+  return arr.filter(r => _filterRules.every(rule => matchFilterRule(r, rule)));
+}
+
+// 主因子值取（含 sleepBin 转换）
+// 统一反向 lag-1：X 取自前日(_prev)，Y 取自当日(rec._y)
+function valueOfMainFactor(rec, key) {
+  const xRec = rec._prev || rec;  // 没有 prev 时退回当日（极端边界）
+  return getMainFactorValue(xRec, key);
+}
+
+// 计算单个 (X, Y) 相关系数（返回 {r, n} 或 null）
+// X 取自 prev（反向 lag-1），Y 取自 rec._y
+function calcCorrXY(arr, xKey, yKey, isDerived) {
+  const pairs = [];
+  arr.forEach(r => {
+    let xv;
+    if (isDerived) {
+      // 派生因子也从 prev 取（与主因子保持一致的对齐口径）
+      const xRec = r._prev || r;
+      xv = hasDerivedFactor(xRec, xKey) ? 1 : 0;
+    } else {
+      xv = valueOfMainFactor(r, xKey);
+    }
+    const yv = r._y;
+    if (xv == null || yv == null) return;
+    const xn = +xv, yn = +yv;
+    if (!Number.isFinite(xn) || !Number.isFinite(yn)) return;
+    pairs.push([xn, yn]);
+  });
+  if (pairs.length < CORR_MIN_N) return null;
+  const r = pearsonR(pairs.map(p=>p[0]), pairs.map(p=>p[1]));
+  if (r == null || !Number.isFinite(r)) return null;
+  return { r, n: pairs.length };
+}
+
+// 区块 C 因子勾选状态
+let _selectedFactors = {
+  main: new Set(Object.keys(MAIN_FACTORS)),
+  derived: new Set(DERIVED_FACTOR_LIST),
+};
+
+// 通用因子分析引擎入口
+function runFactorAnalysis() {
+  const targetKey = document.getElementById('target-var').value;
+  if (!TARGET_VARS[targetKey]) return;
+  const aligned = buildAlignedRecords(targetKey);
+  const filtered = applyAllFilterRules(aligned);
+
+  // 动态剔除自相关因子（避免 X=Y 的伪相关）
+  const excluded = new Set(TARGET_EXCLUDE_FACTORS[targetKey] || []);
+
+  // 计算主因子 + 派生因子
+  const rows = [];
+  Object.keys(MAIN_FACTORS).forEach(k => {
+    if (!_selectedFactors.main.has(k)) return;
+    if (excluded.has(k)) return;  // 目标变量含该字段则跳过
+    const result = calcCorrXY(filtered, k, targetKey, false);
+    if (result) rows.push({ key: k, label: MAIN_FACTORS[k].label, isDerived: false, ...result });
+  });
+  DERIVED_FACTOR_LIST.forEach(k => {
+    if (!_selectedFactors.derived.has(k)) return;
+    const result = calcCorrXY(filtered, k, targetKey, true);
+    if (result) rows.push({ key: k, label: k, isDerived: true, ...result });
+  });
+
+  // 排序：|r| 降序
+  rows.sort((a,b) => Math.abs(b.r) - Math.abs(a.r));
+
+  // 配对数 = filtered.length（每条 aligned 记录已成功计算 Y，且 X 来自 prev）
+  // 注入排除列表供渲染使用
+  renderFactorAnalysisTable(rows, filtered.length, targetKey, [...excluded]);
+}
+
+function renderFactorAnalysisTable(rows, filteredN, targetKey, excludedKeys=[]) {
+  const tbody = document.querySelector('#factor-analysis-table tbody');
+  if (!tbody) return;
+  const yLabel = TARGET_VARS[targetKey].label;
+  // 配对数 = filtered.length（已剔除首条无 i-1 的记录）
+  // <2 不计算、2-4 仅供参考、≥5 正常显示
+  let sampleNote;
+  if (filteredN < 2) {
+    sampleNote = `<span style="color:var(--danger);">配对数 ${filteredN}（不足以计算任何相关性）</span>`;
+  } else if (filteredN < CORR_REFERENCE_N) {
+    sampleNote = `<span style="color:var(--warn);">配对数 ${filteredN} 条（2-4 条仅供趋势参考）</span>`;
+  } else {
+    sampleNote = `配对数 ${filteredN} 条`;
+  }
+  // 顶部小字：自相关因子已自动排除
+  let excludeHint = '';
+  if (excludedKeys.length > 0) {
+    const names = excludedKeys.map(k => MAIN_FACTORS[k]?.label).filter(Boolean).join(' / ');
+    excludeHint = ` ｜ <span style="color:var(--warn);font-size:11px;">已自动排除自相关因子：${names}</span>`;
+  }
+  document.getElementById('analysis-sample-info').innerHTML =
+    `目标变量：<b style="color:var(--accent);">${yLabel}</b> ｜ 样本：${sampleNote}${excludeHint}`;
+
+  if (rows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="color:var(--text-dim);padding:16px;">当前筛选条件下样本不足以计算任何相关性</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(r => {
+    const safeR = (typeof r.r === 'number' && Number.isFinite(r.r)) ? r.r : 0;
+    const lbl = rLabel(Math.abs(safeR));
+    // 配对数 < 5 时也加 "(参考)" 提示，与表格顶部口径保持一致
+    const flag = r.n < CORR_REFERENCE_N ? ' <span style="color:var(--warn);font-size:10px;">(参考)</span>' : '';
+    const dir = safeR > 0 ? '<span style="color:var(--accent2);">↑正</span>'
+              : safeR < 0 ? '<span style="color:var(--danger);">↓负</span>'
+              : '—';
+    return `<tr>
+      <td style="text-align:left;">${r.isDerived ? '🏷' : ''} ${r.label}</td>
+      <td style="font-weight:700;color:${lbl.color}">${safeR.toFixed(3)}</td>
+      <td style="color:${lbl.color}">${lbl.label}</td>
+      <td>${dir}</td>
+      <td>${r.n}${flag}</td>
+    </tr>`;
+  }).join('');
+}
+
+// 动态筛选规则：添加 / 删除 / 渲染
+function addFilterRule() {
+  _filterRules.push({ field: 'cyclePhase', op: '=', value: '经期' });
+  renderFilterRules();
+  runFactorAnalysis();
+}
+function removeFilterRule(idx) {
+  _filterRules.splice(idx, 1);
+  renderFilterRules();
+  runFactorAnalysis();
+}
+function clearFilterRules() {
+  _filterRules = [];
+  renderFilterRules();
+  runFactorAnalysis();
+}
+function updateFilterRule(idx, patch) {
+  _filterRules[idx] = { ..._filterRules[idx], ...patch };
+  runFactorAnalysis();
+}
+function renderFilterRules() {
+  const box = document.getElementById('filter-rules');
+  if (!box) return;
+  if (_filterRules.length === 0) {
+    box.innerHTML = '<p style="color:var(--text-dim);font-size:12px;margin:6px 0;">未添加筛选规则（默认全部数据参与计算）</p>';
+    return;
+  }
+  box.innerHTML = _filterRules.map((r, i) => {
+    const group = filterFieldGroup(r.field);
+    const meta = group ? (group.schema[r.field] || null) : null;
+    const opOptions = meta ? opsForType(meta.type).map(op => `<option value="${op}" ${r.op === op ? 'selected' : ''}>${op}</option>`).join('') : '';
+    const fieldOptions = renderFieldOptions(r.field);
+    const valueInput = renderValueInput(r, meta);
+    return `<div class="filter-rule">
+      <select onchange="updateFilterRule(${i}, {field: this.value, op: '${OPS_ENUM[0]}', value: this.value==='derivedFactors'?'':'${defaultValueForField(_filterRules[i].field)}'})">${fieldOptions}</select>
+      <select onchange="updateFilterRule(${i}, {op: this.value})">${opOptions}</select>
+      ${valueInput}
+      <button class="btn secondary" style="padding:4px 10px;" onclick="removeFilterRule(${i})">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function filterFieldGroup(fieldKey) {
+  for (const [g, schema] of Object.entries(FILTER_SCHEMA)) {
+    if (schema[fieldKey]) return { group: g, schema };
+  }
+  return null;
+}
+function renderFieldOptions(currentField) {
+  let html = '';
+  for (const [group, schema] of Object.entries(FILTER_SCHEMA)) {
+    html += `<optgroup label="${group}">`;
+    for (const [k, m] of Object.entries(schema)) {
+      html += `<option value="${k}" ${currentField === k ? 'selected' : ''}>${m.label}</option>`;
+    }
+    html += '</optgroup>';
+  }
+  return html;
+}
+function opsForType(type) {
+  if (type === 'enum') return OPS_ENUM;
+  if (type === 'num') return OPS_NUM;
+  if (type === 'sleepDecile') return OPS_DECILE;
+  if (type === 'derived') return OPS_DERIVED;
+  return OPS_ENUM;
+}
+function defaultValueForField(fieldKey) {
+  const g = filterFieldGroup(fieldKey);
+  if (!g) return '';
+  const m = g.schema[fieldKey];
+  if (m.type === 'enum') return m.values[0];
+  if (m.type === 'sleepDecile') return '0';
+  if (m.type === 'derived') return DERIVED_FACTOR_LIST[0];
+  return '';
+}
+function renderValueInput(rule, meta) {
+  if (!meta) return `<input type="text" value="${rule.value || ''}" onchange="updateFilterRule(${_filterRules.indexOf(rule)}, {value: this.value})" style="width:80px;">`;
+  if (meta.type === 'enum') {
+    return `<select onchange="updateFilterRule(${_filterRules.indexOf(rule)}, {value: this.value})">${meta.values.map(v => `<option value="${v}" ${rule.value === v ? 'selected' : ''}>${v}</option>`).join('')}</select>`;
+  }
+  if (meta.type === 'sleepDecile') {
+    const opts = SLEEP_DECILES.map(d => `<option value="${d}" ${rule.value == d ? 'selected' : ''}>${d}h</option>`).join('') + `<option value=">8" ${rule.value === '>8' ? 'selected' : ''}>>8h</option>`;
+    return `<select onchange="updateFilterRule(${_filterRules.indexOf(rule)}, {value: this.value})">${opts}</select>`;
+  }
+  if (meta.type === 'derived') {
+    return `<select onchange="updateFilterRule(${_filterRules.indexOf(rule)}, {value: this.value})">${DERIVED_FACTOR_LIST.map(d => `<option value="${d}" ${rule.value === d ? 'selected' : ''}>${d}</option>`).join('')}</select>`;
+  }
+  // num
+  return `<input type="number" value="${rule.value || ''}" onchange="updateFilterRule(${_filterRules.indexOf(rule)}, {value: this.value})" style="width:80px;">`;
+}
+
+// 区块 C 因子勾选器
+function renderFactorSelector() {
+  const box = document.getElementById('factor-selector');
+  if (!box) return;
+  const targetKey = document.getElementById('target-var')?.value || 'weightDelta';
+  const excluded = new Set(TARGET_EXCLUDE_FACTORS[targetKey] || []);
+
+  // 主因子：排除项不渲染（保留 _selectedFactors 中的选择以便切回时恢复）
+  let html = '<div class="factor-group"><b>主因子</b>';
+  Object.entries(MAIN_FACTORS).forEach(([k, m]) => {
+    if (excluded.has(k)) return;  // 自相关 → 不渲染
+    html += `<label class="factor-chip"><input type="checkbox" ${_selectedFactors.main.has(k) ? 'checked' : ''} onchange="toggleMainFactor('${k}', this.checked)">${m.label}</label>`;
+  });
+  html += '</div>';
+
+  // 派生因子 + 经期 vs 周期阶段共线性提示
+  html += '<div class="factor-group"><b>派生因子</b>';
+  DERIVED_FACTOR_LIST.forEach(k => {
+    const note = (k === '经期') ? ' <span style="color:var(--warn);font-size:10px;" title="经期与调节因子「周期阶段=经期」存在共线性，结果可能夸大">⚠共线</span>' : '';
+    html += `<label class="factor-chip"><input type="checkbox" ${_selectedFactors.derived.has(k) ? 'checked' : ''} onchange="toggleDerivedFactor('${k}', this.checked)">${k}${note}</label>`;
+  });
+  html += '</div>';
+
+  // 顶部小字说明
+  if (excluded.size > 0) {
+    const names = [...excluded].map(k => MAIN_FACTORS[k]?.label).filter(Boolean).join(' / ');
+    html = `<p style="font-size:11px;color:var(--warn);margin:0 0 8px;">⚠ 目标变量含${names}，对应主因子已自动隐藏（避免自相关伪相关）</p>` + html;
+  }
+  box.innerHTML = html;
+}
+function toggleMainFactor(k, checked) {
+  if (checked) _selectedFactors.main.add(k); else _selectedFactors.main.delete(k);
+  runFactorAnalysis();
+}
+function toggleDerivedFactor(k, checked) {
+  if (checked) _selectedFactors.derived.add(k); else _selectedFactors.derived.delete(k);
+  runFactorAnalysis();
+}
+
+// ============================================================
+//  RULE GENERATION — 主因子 × 调节因子 两维规则引擎
+// ============================================================
+
+// 调节因子动态分组：有序量 n<3 降级二分类，无序按原值
+function getModeratorValues(M, records) {
+  if (M === 'cyclePhase') {
+    const v = new Set(records.map(r => r.cyclePhase).filter(Boolean));
+    return [...v];
+  }
+  if (M === 'stress' || M === 'solitude') {
+    const v = new Set(records.map(r => r[M]));
+    return [...v].filter(x => x);
+  }
+  if (M === 'socialLoad' || M === 'cognitionGain') {
+    // 1-5 优先；任何分值 n<3 降级
+    const counts = {};
+    records.forEach(r => {
+      const v = r[M];
+      if (v == null) return;
+      counts[v] = (counts[v] || 0) + 1;
+    });
+    const allOver = [1,2,3,4,5].every(d => (counts[d] || 0) >= 3);
+    if (allOver) return [1,2,3,4,5].filter(d => counts[d]);
+    // 降级二分类
+    return ['low(1-2)', 'mid(3)', 'high(4-5)'];
+  }
+  return [];
+}
+function matchesModerator(rec, M, mv) {
+  if (M === 'cyclePhase') return rec.cyclePhase === mv;
+  if (M === 'stress' || M === 'solitude') return rec[M] === mv;
+  if (M === 'socialLoad' || M === 'cognitionGain') {
+    const v = rec[M];
+    if (v == null) return false;
+    if (mv === 'low(1-2)') return v <= 2;
+    if (mv === 'mid(3)') return v === 3;
+    if (mv === 'high(4-5)') return v >= 4;
+    return v === mv;
+  }
+  return false;
+}
+function mvLabel(M, mv) {
+  if (M === 'cyclePhase' || M === 'stress' || M === 'solitude') return mv;
+  if (M === 'socialLoad' || M === 'cognitionGain') {
+    if (typeof mv === 'string' && mv.startsWith('low')) return '低(1-2)';
+    if (typeof mv === 'string' && mv.startsWith('mid')) return '中(3)';
+    if (typeof mv === 'string' && mv.startsWith('high')) return '高(4-5)';
+    return `分值${mv}`;
+  }
+  return String(mv);
+}
+
+function generateRules() {
+  const targetKey = document.getElementById('target-var') ? document.getElementById('target-var').value : 'weightDelta';
+  const aligned = buildAlignedRecords(targetKey);
+  const filtered = applyAllFilterRules(aligned);
+  if (filtered.length < 5) return [];   // 总体样本太少
+
+  const rules = [];
+  Object.entries(MODERATORS).forEach(([MKey, MMeta]) => {
+    const mValues = getModeratorValues(MKey, filtered);
+    mValues.forEach(mv => {
+      const subset = filtered.filter(r => matchesModerator(r, MKey, mv));
+      if (subset.length < RULE_MIN_N) return;
+      // 主因子（X 取自前日 prev，统一反向 lag-1 口径；并剔除自相关）
+      const excluded = new Set(TARGET_EXCLUDE_FACTORS[targetKey] || []);
+      Object.entries(MAIN_FACTORS).forEach(([XKey, XMeta]) => {
+        if (excluded.has(XKey)) return;
+        const pairs = subset.map(r => [getMainFactorValue(r._prev || r, XKey), r._y]).filter(p => p[0] != null && p[1] != null);
+        if (pairs.length < RULE_MIN_N) return;
+        const r = pearsonR(pairs.map(p=>p[0]), pairs.map(p=>p[1]));
+        if (r == null || !Number.isFinite(r) || Math.abs(r) < RULE_MIN_ABS_R) return;
+        const meanY = pairs.reduce((s,p)=>s+p[1],0) / pairs.length;
+        const sci = SCI_EVIDENCE[XKey] != null ? SCI_EVIDENCE[XKey] : 0.5;
+        const score = computeConfScore(r, pairs.length, sci);
+        rules.push({ M: MKey, mv, X: XKey, XLabel: XMeta.label, r, n: pairs.length, meanY, score, sci });
+      });
+      // 派生因子（X 也从 prev 取，保持口径一致）
+      DERIVED_FACTOR_LIST.forEach(dk => {
+        const inSubset = subset.filter(r => hasDerivedFactor(r._prev || r, dk));
+        const outSubset = subset.filter(r => !hasDerivedFactor(r._prev || r, dk));
+        if (inSubset.length < RULE_MIN_N || outSubset.length < RULE_MIN_N) return;
+        const meanIn = inSubset.reduce((s,r)=>s+r._y,0) / inSubset.length;
+        const meanOut = outSubset.reduce((s,r)=>s+r._y,0) / outSubset.length;
+        const diff = meanIn - meanOut;
+        if (Math.abs(diff) < 0.05) return;
+        // 当成二值化：构造 pairs（X 用 prev 上的派生因子状态）
+        const pairs = subset.map(r => [hasDerivedFactor(r._prev || r, dk) ? 1 : 0, r._y]).filter(p => p[1] != null);
+        const r = pearsonR(pairs.map(p=>p[0]), pairs.map(p=>p[1]));
+        if (r == null || !Number.isFinite(r) || Math.abs(r) < RULE_MIN_ABS_R) return;
+        const sci = SCI_EVIDENCE[dk] != null ? SCI_EVIDENCE[dk] : 0.5;
+        const score = computeConfScore(r, pairs.length, sci);
+        rules.push({ M: MKey, mv, X: dk, XLabel: dk, isDerived: true, r, n: pairs.length, meanY: meanIn, meanDiff: diff, score, sci });
+      });
+    });
+  });
+  // 排序：score 降序，其次 |r|
+  rules.sort((a,b) => (b.score - a.score) || (Math.abs(b.r) - Math.abs(a.r)));
+  return rules.slice(0, RULE_MAX_COUNT);
+}
+
+// ============================================================
+//  3-SOURCE WARNING ENGINE
+// ============================================================
+
+// 个人基线：近 7 天均值
+function recentBaseline(field) {
+  const sorted = [...records].sort((a,b) => b.date.localeCompare(a.date));
+  const recent = sorted.slice(0, 7).filter(r => r[field] != null);
+  if (recent.length === 0) return null;
+  const vals = recent.map(r => r[field]);
+  const mean = vals.reduce((a,b)=>a+b,0) / vals.length;
+  const std = Math.sqrt(vals.reduce((s,v)=>s+(v-mean)**2,0) / vals.length);
+  return { mean, std, n: vals.length };
+}
+
+// 周期阶段：预测未来 2-3 天的阶段
+function forecastCyclePhase(daysAhead) {
+  if (records.length === 0) return null;
+  const sorted = [...records].sort((a,b) => a.date.localeCompare(b.date));
+  const last = sorted[sorted.length - 1];
+  if (!last.cyclePhase) return null;
+  // 简单推断：基于当前阶段 + 推断下个阶段
+  const phaseSeq = ['经期', '卵泡期', '排卵期', '黄体期'];
+  const lastIdx = phaseSeq.indexOf(last.cyclePhase);
+  if (lastIdx < 0) return null;
+  const targetIdx = (lastIdx + daysAhead) % phaseSeq.length;
+  return phaseSeq[targetIdx];
+}
+
+function renderAdviceV2(rules) {
+  const container = document.getElementById('advice-list');
+  if (!container) return;
+  if (records.length === 0) {
+    container.innerHTML = '<p style="color:var(--text-dim);font-size:13px;">开始记录后，这里会根据你的数据给出个性化预警。</p>';
+    return;
+  }
+  const sorted = [...records].sort((a,b) => b.date.localeCompare(b.date));
+  const latest = sorted[0];
+  const advices = [];
+
+  // ── 即时预警（红/橙）：当前状态触发高置信度规则 ──
+  if (rules && rules.length > 0 && latest) {
+    const highConf = rules.filter(r => r.score >= HIGH_CONF_SCORE);
+    highConf.slice(0, 5).forEach(r => {
+      const currentMatch = matchesModerator(latest, r.M, r.mv);
+      if (!currentMatch) return;
+      advices.push({
+        level: 'warning',
+        title: `⚠️ ${MODERATORS[r.M].label}=${mvLabel(r.M, r.mv)} 时 ${r.XLabel} ${r.r > 0 ? '↑升' : '↓降'} 结果变量`,
+        body: `基于 ${r.n} 条样本的|r|=${Math.abs(r.r).toFixed(2)} 高置信度规则，${r.isDerived
+          ? `勾选「${r.XLabel}」平均使${TARGET_VARS[document.getElementById('target-var').value].label}${r.r > 0 ? '↑升' : '↓降'} ${Math.abs(r.meanY - (r.meanDiff != null ? r.meanY - r.meanDiff : 0)).toFixed(2)}`
+          : `${r.XLabel} ${r.r > 0 ? '↑正相关' : '↓负相关'}，建议关注`
+        }。`,
+      });
+    });
+  }
+
+  // ── 周期前瞻（蓝）──
+  for (let d = 1; d <= 3; d++) {
+    const futurePhase = forecastCyclePhase(d);
+    if (!futurePhase || futurePhase === latest.cyclePhase) continue;
+    // 历史在该阶段的样本
+    const histAtPhase = records.filter(r => r.cyclePhase === futurePhase && r.weight != null);
+    const histDesc = histAtPhase.length > 0 ? `你历史在该阶段共 ${histAtPhase.length} 天` : '该阶段暂无历史样本';
+    advices.push({
+      level: 'cycle',
+      title: `🔵 ${d} 天后将进入：${futurePhase}`,
+      body: `当前处于${latest.cyclePhase || '未知'}，预计 ${d} 天后进入「${futurePhase}」。${histDesc}，建议提前安排作息。`,
+    });
+    break;   // 只提示最近一次
+  }
+
+  // ── 趋势提醒（黄）：近 3-7 天偏离基线 ──
+  ['sleepHours', 'mood', 'energy', 'socialLoad'].forEach(field => {
+    const base = recentBaseline(field);
+    if (!base || base.n < 3) return;
+    const recent = sorted.slice(0, 3).filter(r => r[field] != null);
+    if (recent.length < 2) return;
+    const avgRecent = recent.reduce((s,r)=>s+r[field],0) / recent.length;
+    const z = (avgRecent - base.mean) / (base.std || 1);
+    if (Math.abs(z) < 1) return;
+    const label = ({sleepHours:'睡眠',mood:'情绪',energy:'精力',socialLoad:'社交负荷'})[field];
+    advices.push({
+      level: 'trend',
+      title: `📈 近 3 天${label}偏离基线（z=${z.toFixed(2)}）`,
+      body: `近期均值 ${avgRecent.toFixed(2)} vs 近7天基线 ${base.mean.toFixed(2)}±${base.std.toFixed(2)}。建议关注${z > 0 ? '升高' : '下降'}原因。`,
+    });
+  });
+
+  // ── 积极反馈（绿）：连续 5+ 天某行为符合健康模式 ──
+  const recent7 = sorted.slice(0, 7);
+  if (recent7.length >= 5) {
+    const goodSleepCount = recent7.filter(r => r.sleepHours != null && r.sleepHours >= 7).length;
+    if (goodSleepCount >= 5) {
+      advices.push({ level: 'positive', title: '🌟 睡眠习惯良好', body: `近 7 天中有 ${goodSleepCount} 天睡眠≥7h，继续保持！` });
+    }
+    const exerciseCount = recent7.filter(r => Array.isArray(r.exercise) ? r.exercise.length > 0 : (r.exercise && r.exercise !== '无')).length;
+    if (exerciseCount >= 5) {
+      advices.push({ level: 'positive', title: '💪 运动习惯良好', body: `近 7 天中有 ${exerciseCount} 天有运动记录，保持规律！` });
+    }
+    const solitudeCount = recent7.filter(r => r.solitude === '是').length;
+    if (solitudeCount >= 3) {
+      advices.push({ level: 'positive', title: '🧘 自我内探稳定', body: `近 7 天中有 ${solitudeCount} 天有深度独处/心流时刻记录，内向者必备的能量补给。` });
+    }
+  }
+
+  container.innerHTML = advices.map(a => `
+    <div class="advice-card" data-level="${a.level}">
+      <div class="advice-title">${a.title}</div>
+      <div class="advice-body">${a.body}</div>
+    </div>
+  `).join('') || '<p style="color:var(--text-dim);font-size:13px;">当前数据条件下暂无明显预警与建议。</p>';
 }
 
 // ============================================================
@@ -2387,272 +3106,44 @@ function renderSolitudeChart() {
 }
 
 // ============================================================
-//  RULES (Decision Tree)
+//  RULES (Decision Tree) — V2 引擎驱动
 // ============================================================
 function renderRules() {
   renderKeywordList();
-  renderAutoRules();
-  renderAdvice();
+  const rules = generateRules();
+  renderAutoRulesV2(rules);
+  renderAdviceV2(rules);
 }
 
-function renderAutoRules() {
+function renderAutoRulesV2(rules) {
   const container = document.getElementById('rules-list');
-  const sorted = [...records].filter(r => r.weight != null).sort((a,b) => a.date.localeCompare(b.date));
-
-  if (sorted.length < 7) {
+  if (!container) return;
+  const targetKey = document.getElementById('target-var') ? document.getElementById('target-var').value : 'weightDelta';
+  const yLabel = TARGET_VARS[targetKey].label;
+  if (records.length < 7) {
     document.getElementById('rules-empty').style.display = 'block';
     container.innerHTML = '';
     return;
   }
   document.getElementById('rules-empty').style.display = 'none';
-
-  // Build delta records with lag-1 predictors
-  const deltaRecords = [];
-  for (let i = 1; i < sorted.length; i++) {
-    deltaRecords.push({
-      ...sorted[i],
-      weightDelta: sorted[i].weight - sorted[i-1].weight,
-      prev: sorted[i-1],
-    });
-  }
-
-  // Decision tree: split by conditions and find groups where weightDelta is consistently high/low
-  const conditions = [];
-  const phases = ['经期','卵泡期','排卵期','黄体期'];
-  const carbLevels = ['低','中','高'];
-  const sodiumLevels = ['低','中','高'];
-  const sleepCats = ['low','high'];
-  const stressCats = ['有','无'];
-
-  for (const phase of phases) {
-    for (const carb of carbLevels) {
-      for (const sodium of sodiumLevels) {
-        for (const sc of sleepCats) {
-          for (const stc of stressCats) {
-            const group = deltaRecords.filter(r => {
-              if (r.cyclePhase !== phase) return false;
-              if (r.prev.carb !== carb) return false;
-              if (r.prev.sodium !== sodium) return false;
-              if (sc === 'low' && (r.prev.sleepHours == null || r.prev.sleepHours >= 6)) return false;
-              if (sc === 'high' && (r.prev.sleepHours == null || r.prev.sleepHours < 6)) return false;
-              if (r.prev.stress !== stc) return false;
-              return true;
-            });
-            if (group.length >= 2) {
-              const avgDelta = group.reduce((s, r) => s + r.weightDelta, 0) / group.length;
-              const isSignificant = Math.abs(avgDelta) >= 0.3;
-              if (isSignificant) {
-                conditions.push({
-                  phase, carb, sodium, sleep: sc, stress: stc,
-                  avgDelta, n: group.length,
-                  direction: avgDelta > 0 ? '↑升' : '↓降',
-                });
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-
-  // Also add simpler rules
-  for (const phase of phases) {
-    for (const carb of carbLevels) {
-      const group = deltaRecords.filter(r => r.cyclePhase === phase && r.prev.carb === carb);
-      if (group.length >= 2) {
-        const avgDelta = group.reduce((s, r) => s + r.weightDelta, 0) / group.length;
-        if (Math.abs(avgDelta) >= 0.3) {
-          conditions.push({
-            phase, carb, sodium: '(任意)', sleep: 'all', stress: '(任意)',
-            avgDelta, n: group.length,
-            direction: avgDelta > 0 ? '↑升' : '↓降',
-          });
-        }
-      }
-    }
-  }
-
-  // Sort by absolute avgDelta
-  conditions.sort((a, b) => Math.abs(b.avgDelta) - Math.abs(a.avgDelta));
-
-  if (conditions.length === 0) {
-    container.innerHTML = '<p style="color:var(--text-dim);font-size:13px;">当前数据暂未发现显著规则。继续记录更多天数，系统会自动挖掘规律。</p>';
+  if (!rules || rules.length === 0) {
+    container.innerHTML = '<p style="color:var(--text-dim);font-size:13px;">当前数据暂未发现显著规则（|r| ≥ 0.2 且 n ≥ 3）。继续记录更多天数，系统会自动挖掘规律。</p>';
     return;
   }
-
-  container.innerHTML = conditions.slice(0, 15).map(c => {
-    const condParts = [];
-    if (c.phase) condParts.push(`周期=${c.phase}`);
-    if (c.carb !== '(任意)') condParts.push(`碳水=${c.carb}`);
-    if (c.sodium !== '(任意)') condParts.push(`钠=${c.sodium}`);
-    condParts.push(`睡眠=${c.sleep === 'low' ? '<6h' : c.sleep === 'high' ? '≥6h' : '任意'}`);
-    condParts.push(`压力=${c.stress}`);
-
-    const intensity = Math.abs(c.avgDelta);
-    const score = Math.min(100, Math.round(intensity * 40 + c.n * 5));
-
+  const dirSign = (r) => r.r > 0 ? '↑升' : '↓降';
+  container.innerHTML = rules.map(c => {
+    const sl = scoreLabel(c.score);
+    const dirColor = c.r > 0 ? 'var(--accent2)' : 'var(--danger)';
+    const Y = c.r > 0 ? '+' : '';
+    const meanYAbs = Math.abs(c.meanY).toFixed(2);
     return `<div class="rule-item">
       <div class="rule-head">
-        <span class="rule-cond">IF ${condParts.join(' AND ')}</span>
-        <span class="rule-score">置信度: ${score}/100 (n=${c.n})</span>
+        <span class="rule-cond"><b>核心：</b>${MODERATORS[c.M].label} = ${mvLabel(c.M, c.mv)} <b>｜</b> <b>修饰：</b>${c.isDerived ? '🏷' : ''}${c.XLabel}</span>
+        <span class="rule-score">置信度：${sl} ${c.score}/100</span>
       </div>
-      <div class="rule-then">→ 体重平均${c.direction} ${c.avgDelta >= 0 ? '+' : ''}${c.avgDelta.toFixed(2)} kg</div>
+      <div class="rule-then" style="color:${dirColor};">→ ${yLabel}平均 ${dirSign(c.r)} ${Y}${meanYAbs}（r=${c.r.toFixed(2)}，n=${c.n}）</div>
     </div>`;
   }).join('');
-}
-
-// ============================================================
-//  ADVICE (Early Warning)
-// ============================================================
-function renderAdvice() {
-  const container = document.getElementById('advice-list');
-  if (records.length === 0) {
-    container.innerHTML = '<p style="color:var(--text-dim);font-size:13px;">开始记录后，这里会根据你的数据给出个性化预警。</p>';
-    return;
-  }
-
-  const sorted = [...records].sort((a,b) => b.date.localeCompare(a.date));
-  const latest = sorted[0];
-  const phase = latest.cyclePhase || '未知';
-  const advices = [];
-
-  // Cycle-based advice
-  if (phase === '黄体期') {
-    advices.push({
-      title: '🟣 黄体期预警',
-      items: [
-        '黄体期体重易因水钠潴留上升 0.5-1.5kg，属正常生理波动，不要恐慌性节食。',
-        ' cravings（食欲增加）是黄体酮升高的正常表现，优先选择蛋白质和健康脂肪替代高碳水。',
-        '情绪波动幅度加大，提前安排低强度活动（散步、瑜伽），减少高密度社交。',
-        '睡眠质量可能下降，建议提前30分钟入睡，减少蓝光暴露。',
-      ]
-    });
-  } else if (phase === '经期') {
-    advices.push({
-      title: '🔴 经期提醒',
-      items: [
-        '经期基础代谢略升，体重可能因出血和脱水略降——这不代表"变瘦了"。',
-        '铁质流失，建议补充红肉/菠菜/维C；避免高钠饮食加重腹胀。',
-        '精力通常偏低，减少力量训练，以散步和拉伸为主。',
-        '情绪敏感度升高，允许自己慢下来，减少"必须高效"的自我施压。',
-      ]
-    });
-  } else if (phase === '卵泡期') {
-    advices.push({
-      title: '🟢 卵泡期窗口',
-      items: [
-        '卵泡期雌激素上升，精力与情绪通常较好——是安排高强度运动和社交的好时机。',
-        '此阶段体重相对稳定，适合设定行为目标（如运动频率、饮食结构调整）。',
-        '认知能力可能提升，适合安排深度独处/心流活动。',
-      ]
-    });
-  } else if (phase === '排卵期') {
-    advices.push({
-      title: '🟠 排卵期注意',
-      items: [
-        '排卵期前后体重可能因激素波动微升，注意区分"激素性波动"和"饮食性增长"。',
-        '精力通常处于周期峰值，适合挑战性任务。',
-        '食欲可能自然降低，但注意不要因"状态好"而暴饮暴食。',
-      ]
-    });
-  }
-
-  // Sleep-based advice
-  if (latest.sleepHours != null && latest.sleepHours < 6) {
-    advices.push({
-      title: '😴 睡眠不足预警',
-      items: [
-        '昨日睡眠不足6h，今天食欲调控激素（瘦素↓、饥饿素↑）失衡， cravings风险高。',
-        '今日体重可能因皮质醇升高而微升0.2-0.5kg——这不是脂肪增长。',
-        '建议：今日碳水摄入控制在"低-中"，增加蛋白质，提前规划饮食避免冲动进食。',
-        '今日避免高强度运动，优先补觉。',
-      ]
-    });
-  }
-
-  // Stress-based advice
-  if (latest.stress === '有') {
-    advices.push({
-      title: '⚡ 压力事件应对',
-      items: [
-        '压力激活皮质醇→水钠潴留+腹部脂肪偏好。体重可能短期上升0.3-1kg。',
-        '建议：今日进行15-30min深度独处/冥想，降低皮质醇。',
-        '饮食策略：增加镁（坚果/深色蔬菜），减少咖啡因，避免"情绪性进食"。',
-        '语言调整：对自己说"这会过去的"，减少灾难化思维。',
-      ]
-    });
-  }
-
-  // High sodium
-  if (latest.sodium === '高') {
-    advices.push({
-      title: '🧂 高钠摄入提醒',
-      items: [
-        '昨日钠摄入高，今日体重可能因水钠潴留上升0.3-0.8kg（非脂肪）。',
-        '建议：今日饮水≥8杯，帮助排出多余钠；增加钾摄入（香蕉/番茄）。',
-        '明日体重应回落，不必焦虑。',
-      ]
-    });
-  }
-
-  // High carb
-  if (latest.carb === '高') {
-    advices.push({
-      title: '🍚 高碳水提醒',
-      items: [
-        '高碳水→每1g碳水约储水3g，体重短期可能上升0.5-1kg（糖原+水）。',
-        '如果同时处于黄体期，效果叠加，波动更大。',
-        '建议：次日碳水降至"中"，蛋白质提至"高"，观察2天体重回落趋势。',
-      ]
-    });
-  }
-
-  // Social overload
-  if (latest.socialLoad != null && latest.socialLoad >= 4) {
-    advices.push({
-      title: '👥 社交负荷过高',
-      items: [
-        '内向者高密度社交后能量净值通常为负，次日情绪可能下降1-2分。',
-        '建议：次日安排深度独处/低社交活动，"充电"恢复。',
-        '注意：社交负荷高的次日容易"报复性进食"或"报复性熬夜"，提前设定边界。',
-      ]
-    });
-  }
-
-  // Cognition gain
-  if (latest.cognitionGain != null && latest.cognitionGain >= 4) {
-    advices.push({
-      title: '✨ 认知收获丰富',
-      items: [
-        '今日认知收获高（≥4分），数据分析显示这通常预示次日情绪更好、体重波动更小。',
-        '建议：趁状态好，记录下今天的洞察——用「内心笔记」或「活动备注」留存。',
-        '这种"自我内探"的积极效应可能持续2-3天，适合推进个人项目。',
-      ]
-    });
-  }
-
-  // No solitude for a while
-  const recent7 = sorted.slice(0, 7);
-  const solitudeCount = recent7.filter(r => r.solitude === '是').length;
-  if (solitudeCount === 0 && records.length >= 7) {
-    advices.push({
-      title: '🧘 深度独处不足',
-      items: [
-        '近7天没有深度独处/心流时刻记录。内向者的"自我内探"是情绪和体重稳定的重要保护因子。',
-        '建议：今天安排至少20分钟的独处活动（阅读/冥想/写作），记录恢复评分。',
-        '长期数据表明，有深度独处的天数，情绪波动性和体重波动性都更低。',
-      ]
-    });
-  }
-
-  container.innerHTML = advices.map(a => `
-    <div class="rule-item">
-      <div class="rule-head"><span class="rule-then" style="color:var(--accent);">${a.title}</span></div>
-      <ul style="margin-top:6px;padding-left:18px;">
-        ${a.items.map(i => `<li style="font-size:12px;color:var(--text-dim);margin-bottom:3px;">${i}</li>`).join('')}
-      </ul>
-    </div>
-  `).join('');
 }
 
 // ============================================================
