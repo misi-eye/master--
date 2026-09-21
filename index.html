@@ -145,6 +145,80 @@ input[type=range] { flex: 1; accent-color: var(--accent); }
 .cycle-黄体期 { background: rgba(124,92,252,0.15); color: var(--accent); border: 1px solid var(--accent); }
 .cycle-未知 { background: var(--surface2); color: var(--text-dim); border: 1px solid var(--border); }
 
+/* V2：预测阶段 = 半透明 + 虚线边框；已确认 = 实心（沿用上面） */
+.cycle-badge {
+  display: inline-block; padding: 4px 10px; border-radius: 999px;
+  font-size: 12px; font-weight: 600; cursor: pointer; user-select: none;
+  transition: transform 0.15s;
+}
+.cycle-badge:hover { transform: scale(1.05); }
+.cycle-badge.cycle-confirmed { /* 已确认：保留阶段颜色，加粗边框 + 加深字重 */
+  border-width: 2px;
+  font-weight: 700;
+}
+.cycle-badge.cycle-predicted { /* 浅色：半透明 + 虚线 */
+  opacity: 0.55; border-style: dashed;
+}
+.cycle-badge.cycle-unknown { cursor: default; opacity: 0.7; }
+.cycle-badge .phase-source-tag { font-size: 10px; margin-left: 4px; opacity: 0.7; }
+
+/* 历史表徽章（更紧凑） */
+.cycle-badge.table-badge { padding: 2px 8px; font-size: 10px; cursor: default; }
+.cycle-badge.table-badge:hover { transform: none; }
+
+/* 周期详情 modal */
+.cycle-modal-overlay {
+  position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.7);
+  display: none; align-items: center; justify-content: center; padding: 20px;
+}
+.cycle-modal-overlay.show { display: flex; }
+.cycle-modal {
+  background: var(--surface); border-radius: 14px; padding: 20px;
+  max-width: 360px; width: 100%;
+}
+.cycle-modal h3 { margin: 0 0 12px; font-size: 16px; }
+.cycle-modal .phase-line { font-size: 14px; margin: 8px 0; }
+.cycle-modal .phase-line b { font-weight: 700; }
+.cycle-modal .phase-meta { font-size: 12px; color: var(--text-dim); margin: 4px 0; line-height: 1.7; }
+.cycle-modal .manual-edit { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 12px; }
+.cycle-modal .manual-edit label { font-size: 12px; color: var(--text-dim); display: block; margin-bottom: 6px; }
+.cycle-modal select { width: 100%; padding: 8px; background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; }
+.cycle-modal .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+
+/* 折叠面板 */
+details.about-collapse { margin-top: 16px; }
+details.about-collapse > summary {
+  cursor: pointer; font-size: 14px; font-weight: 600; padding: 10px 12px;
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+  list-style: none; user-select: none;
+}
+details.about-collapse > summary::before { content: '⚙️ '; }
+details.about-collapse > summary::-webkit-details-marker { display: none; }
+details.about-collapse[open] > summary { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+details.about-collapse .collapse-body {
+  border: 1px solid var(--border); border-top: none;
+  border-radius: 0 0 8px 8px; padding: 14px;
+}
+.cycle-setting-row { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
+.cycle-setting-row label { font-size: 13px; min-width: 130px; }
+.cycle-setting-row input { width: 80px; padding: 6px 8px; background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; }
+
+/* 周期超长提示 */
+.cycle-warning-banner {
+  background: rgba(240,160,80,0.1); border: 1px solid var(--warn);
+  border-radius: 10px; padding: 10px 14px; margin-bottom: 12px;
+  font-size: 13px; color: var(--warn); line-height: 1.6;
+}
+.cycle-warning-banner b { color: var(--warn); }
+
+/* 分析表格样本数提示 */
+.sample-source-info { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+.sample-source-info.warn { color: var(--warn); }
+
+/* 历史表图例 */
+.history-legend { font-size: 11px; color: var(--text-dim); margin: 6px 0 8px; display: flex; gap: 12px; }
+.history-legend .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+
 /* Insights */
 .filter-panel { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-bottom: 16px; }
 .filter-item { display: flex; flex-direction: column; gap: 4px; }
@@ -450,7 +524,12 @@ table.data-table tr.target-row { background: rgba(240,160,80,0.12); }
           <option value="量大">量大</option>
         </select>
       </div>
+      <div class="form-group">
+        <label>周期阶段</label>
+        <span id="cycle-display-phase" class="cycle-badge cycle-未知">未知</span>
+      </div>
     </div>
+    <div id="cycle-warning-slot"></div>
 
     <h3>🍽 饮食与营养</h3>
     <div class="form-grid">
@@ -643,6 +722,10 @@ table.data-table tr.target-row { background: rgba(240,160,80,0.12); }
         <tbody id="history-body"></tbody>
       </table>
     </div>
+    <div class="history-legend">
+      <span><span class="dot" style="background:var(--accent);"></span>实心 = 已确认</span>
+      <span><span class="dot" style="background:var(--accent);opacity:0.4;border:1px dashed var(--accent);"></span>浅色 = 预测</span>
+    </div>
     <div id="history-empty" class="empty-state">
       <p>📭 还没有记录。去「记录」页开始你的第一次数据采集吧。</p>
     </div>
@@ -708,7 +791,8 @@ table.data-table tr.target-row { background: rgba(240,160,80,0.12); }
 
       <!-- 结果表格 -->
       <div class="filter-block">
-        <div id="analysis-sample-info" style="font-size:12px;color:var(--text-dim);margin-bottom:8px;"></div>
+        <div id="analysis-sample-info" style="font-size:12px;color:var(--text-dim);margin-bottom:4px;"></div>
+        <div id="analysis-source-info"></div>
         <div style="overflow-x:auto;">
           <table class="data-table" id="factor-analysis-table">
             <thead><tr><th style="text-align:left;">分析因子</th><th>r</th><th>相关度</th><th>方向</th><th>配对数</th></tr></thead>
@@ -854,6 +938,30 @@ table.data-table tr.target-row { background: rgba(240,160,80,0.12); }
       </ul>
     </div>
 
+    <details class="about-collapse">
+      <summary>周期设置（高级）</summary>
+      <div class="collapse-body">
+        <p style="font-size:12px;color:var(--text-dim);margin:0 0 10px;">
+          留空则使用自动估算（≥3 个完整周期时按个体数据推算，否则用医学默认）。
+        </p>
+        <div class="cycle-setting-row">
+          <label>我的平均周期长度</label>
+          <input type="number" id="user-cycle-length" min="21" max="40" step="1" placeholder="留空">
+          <span style="font-size:12px;color:var(--text-dim);">天</span>
+        </div>
+        <div class="cycle-setting-row">
+          <label>我的黄体期长度</label>
+          <input type="number" id="user-luteal-length" min="10" max="16" step="1" placeholder="留空">
+          <span style="font-size:12px;color:var(--text-dim);">天</span>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;">
+          <button class="btn" onclick="saveCycleSettings()">保存</button>
+          <button class="btn secondary" onclick="resetCycleSettings()">恢复默认</button>
+        </div>
+        <p id="cycle-settings-status" style="font-size:11px;color:var(--text-dim);margin-top:8px;"></p>
+      </div>
+    </details>
+
     <div class="about-section" style="text-align:center;margin-top:30px;">
       <p style="font-size:11px;color:var(--text-dim);">内观日志 · 纯前端 PWA · 零成本 · 零追踪<br>v1.0 · 你的数据，你做主</p>
     </div>
@@ -887,6 +995,29 @@ table.data-table tr.target-row { background: rgba(240,160,80,0.12); }
     <div class="share-actions">
       <button class="btn" onclick="downloadShareCard()">⬇ 保存图片</button>
       <button class="btn secondary" onclick="closeShare()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 周期详情 Modal -->
+<div class="cycle-modal-overlay" id="cycle-modal-overlay" onclick="if(event.target===this) closeCycleModal()">
+  <div class="cycle-modal">
+    <h3>🩸 周期阶段详情</h3>
+    <div class="phase-line" id="cm-phase-line">—</div>
+    <div class="phase-meta" id="cm-phase-meta">—</div>
+    <div class="manual-edit">
+      <label>✎ 修正今日阶段（仅影响所选日期当天记录）</label>
+      <select id="cm-manual-select">
+        <option value="">自动（按系统判断）</option>
+        <option value="经期">经期</option>
+        <option value="卵泡期">卵泡期</option>
+        <option value="排卵期">排卵期</option>
+        <option value="黄体期">黄体期</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeCycleModal()">关闭</button>
+      <button class="btn" onclick="applyManualPhase()">保存修正</button>
     </div>
   </div>
 </div>
@@ -1119,7 +1250,18 @@ function migrateAllRecords() {
       r.derivedFactors = newFactors;
       changed = true;
     }
+
+    // 3) 周期阶段 V2 字段初始化（已有保留，新增补齐）
+    if (typeof r.autoCyclePhase === 'undefined') {
+      // 若已有 cyclePhase 且非空：作为 autoCyclePhase 回填
+      r.autoCyclePhase = (r.cyclePhase && r.cyclePhase !== '未知') ? r.cyclePhase : '未知';
+      changed = true;
+    }
+    if (typeof r.manualCyclePhase === 'undefined') { r.manualCyclePhase = ''; changed = true; }
   }
+  // 4) 全量重算周期阶段（写入 autoCyclePhase / phaseSource / cyclePhase / phaseConfirmed）
+  const phaseChanged = recomputeAllPhases();
+  if (phaseChanged) changed = true;
   if (changed) saveDataToStorage();
   return changed;
 }
@@ -1146,121 +1288,406 @@ function removeCustomKeyword(keyword) {
 }
 
 // ============================================================
-//  CYCLE PHASE ALGORITHM
+//  CYCLE PHASE ALGORITHM V2
+//  - 算法层（autoCyclePhase + phaseSource 逐日计算）
+//  - 展示层（computeFinalPhase 综合 manual → actual → predicted）
+//  - 正向预测锚点：最近一次实际月经开始日
 // ============================================================
-function determineCyclePhases(allRecords) {
-  // Returns a map: date -> phase
-  const phaseMap = {};
-  const sorted = [...allRecords].sort((a,b) => a.date.localeCompare(b.date));
 
-  // Find period starts: consecutive >=7 days no bleeding, then first bleeding day
-  const bleedingDays = sorted.filter(r => r.bleeding && r.bleeding !== '无');
-  const periodStarts = [];
-  const periodEnds = [];
+const CYCLE_SETTINGS_KEY = 'cycle_settings_v1';
+const DEFAULT_CYCLE_LENGTH = 28;
+const DEFAULT_LUTEAL_LENGTH = 14;
+const CYCLE_BUFFER_DAYS = 3;     // 预测下次月经后缓冲
+const PERIOD_START_GAP = 7;       // 经期开始判定：≥7 天无出血
+const PHASE_BLEED_MIN = 1;        // 经期长度下限
+const OVULATION_WINDOW = 3;       // 排卵期窗口 ±3 天
 
-  for (let i = 0; i < bleedingDays.length; i++) {
-    const curIdx = sorted.findIndex(r => r.date === bleedingDays[i].date);
-    // Check if previous >=7 days had no bleeding
-    if (curIdx > 0) {
-      let noBleedDays = 0;
-      for (let j = curIdx - 1; j >= 0; j--) {
-        if (!sorted[j].bleeding || sorted[j].bleeding === '无') noBleedDays++;
-        else break;
-        if (noBleedDays >= 7) break;
-      }
-      if (noBleedDays >= 7 || periodStarts.length === 0) {
-        // This is a period start
-        if (periodStarts.length === 0 || noBleedDays >= 7) {
-          periodStarts.push(bleedingDays[i].date);
-        }
-      }
-    } else if (periodStarts.length === 0) {
-      periodStarts.push(bleedingDays[i].date);
-    }
+function loadCycleSettings() {
+  try { return JSON.parse(localStorage.getItem(CYCLE_SETTINGS_KEY) || '{}'); }
+  catch { return {}; }
+}
+function saveCycleSettings() {
+  const cycleInput = document.getElementById('user-cycle-length').value.trim();
+  const lutealInput = document.getElementById('user-luteal-length').value.trim();
+  const settings = {};
+  if (cycleInput) {
+    const n = parseFloat(cycleInput);
+    if (n >= 21 && n <= 40) settings.userAverageCycleLength = n;
   }
-
-  // For each period, find end (last consecutive bleeding day)
-  for (let s = 0; s < periodStarts.length; s++) {
-    const startIdx = sorted.findIndex(r => r.date === periodStarts[s]);
-    let endIdx = startIdx;
-    for (let j = startIdx; j < sorted.length; j++) {
-      if (sorted[j].bleeding && sorted[j].bleeding !== '无') {
-        endIdx = j;
-      } else {
-        if (j > startIdx) break;
-      }
-    }
-    periodEnds.push(sorted[endIdx].date);
+  if (lutealInput) {
+    const n = parseFloat(lutealInput);
+    if (n >= 10 && n <= 16) settings.userLutealLength = n;
   }
-
-  // Assign phases
-  // Period: start to end
-  // Ovulation: 14 days before NEXT period start (retrospective)
-  // Luteal: ovulation to next period start
-  // Follicular: period end to ovulation
-  // Ovulation window: ovulation ±3 days
-
-  for (let s = 0; s < periodStarts.length; s++) {
-    const pStart = periodStarts[s];
-    const pEnd = periodEnds[s];
-    const pStartDate = new Date(pStart);
-    const pEndDate = new Date(pEnd);
-
-    // Mark period
-    for (const r of sorted) {
-      const rd = new Date(r.date);
-      if (rd >= pStartDate && rd <= pEndDate) {
-        phaseMap[r.date] = '经期';
-      }
-    }
-
-    // If there's a next period, calculate ovulation (14 days before next start)
-    if (s + 1 < periodStarts.length) {
-      const nextStart = new Date(periodStarts[s + 1]);
-      const ovulation = new Date(nextStart);
-      ovulation.setDate(ovulation.getDate() - 14);
-
-      // Follicular: period end to ovulation
-      for (const r of sorted) {
-        const rd = new Date(r.date);
-        if (rd > pEndDate && rd < ovulation) {
-          phaseMap[r.date] = '卵泡期';
-        }
-      }
-
-      // Ovulation window: ±3 days
-      for (let d = -3; d <= 3; d++) {
-        const wd = new Date(ovulation);
-        wd.setDate(wd.getDate() + d);
-        const ds = wd.toISOString().slice(0, 10);
-        if (!phaseMap[ds] && sorted.find(r => r.date === ds)) {
-          phaseMap[ds] = '排卵期';
-        }
-      }
-
-      // Luteal: ovulation to next period start
-      for (const r of sorted) {
-        const rd = new Date(r.date);
-        if (rd > ovulation && rd < nextStart && !phaseMap[r.date]) {
-          phaseMap[r.date] = '黄体期';
-        }
-      }
-    } else {
-      // No next period yet — only mark period, don't predict
-      for (const r of sorted) {
-        if (!phaseMap[r.date] && new Date(r.date) > pEndDate) {
-          phaseMap[r.date] = '未知';
-        }
-      }
-    }
-  }
-
-  return phaseMap;
+  localStorage.setItem(CYCLE_SETTINGS_KEY, JSON.stringify(settings));
+  recomputeAllPhases();
+  renderHistory();
+  if (typeof renderWeightTrendChart === 'function') renderWeightTrendChart();
+  document.getElementById('cycle-settings-status').textContent = '✅ 已保存并重新计算所有周期阶段';
+  setTimeout(() => { document.getElementById('cycle-settings-status').textContent = ''; }, 3000);
+}
+function resetCycleSettings() {
+  localStorage.removeItem(CYCLE_SETTINGS_KEY);
+  document.getElementById('user-cycle-length').value = '';
+  document.getElementById('user-luteal-length').value = '';
+  recomputeAllPhases();
+  renderHistory();
+  if (typeof renderWeightTrendChart === 'function') renderWeightTrendChart();
+  document.getElementById('cycle-settings-status').textContent = '✅ 已恢复默认';
+  setTimeout(() => { document.getElementById('cycle-settings-status').textContent = ''; }, 3000);
+}
+function initCycleSettingsUI() {
+  const s = loadCycleSettings();
+  if (s.userAverageCycleLength) document.getElementById('user-cycle-length').value = s.userAverageCycleLength;
+  if (s.userLutealLength) document.getElementById('user-luteal-length').value = s.userLutealLength;
 }
 
+// ===== 平均周期 / 黄体期 估算 =====
+function estimateAverageCycleLength(allRecords) {
+  // 1) 历史实际周期（剔除 <21/>40 天），按近期加权（权重 1,2,3...，最近最高）
+  const periods = identifyPeriodStarts(allRecords);
+  if (periods.length >= 2) {
+    const cycleLens = [];
+    for (let i = 1; i < periods.length; i++) {
+      const len = daysBetween(periods[i-1].date, periods[i].date);
+      if (len >= 21 && len <= 40) cycleLens.push({ len, idx: i - 1 });
+    }
+    if (cycleLens.length >= 1) {
+      // 加权平均：最近权重 = length（最远 +1=1）
+      let sumW = 0, sumVal = 0;
+      cycleLens.forEach((c, i) => {
+        const w = i + 1;
+        sumW += w; sumVal += c.len * w;
+      });
+      const mean = sumVal / sumW;
+      // 简单 stdDev
+      const variance = cycleLens.reduce((s, c, i) => s + (i + 1) * Math.pow(c.len - mean, 2), 0) / sumW;
+      const std = Math.sqrt(variance);
+      return { averageCycleLength: Math.round(mean), sampleCount: cycleLens.length, stdDev: Math.round(std * 10) / 10 };
+    }
+  }
+  // 2) 用户手动设置
+  const s = loadCycleSettings();
+  if (s.userAverageCycleLength) return { averageCycleLength: s.userAverageCycleLength, sampleCount: 0, stdDev: 0 };
+  // 3) 默认
+  return { averageCycleLength: DEFAULT_CYCLE_LENGTH, sampleCount: 0, stdDev: 0 };
+}
+function estimateLutealLength(allRecords, avgCycle, periodMeans) {
+  // 1) 用户手动设置
+  const s = loadCycleSettings();
+  if (s.userLutealLength) return s.userLutealLength;
+  // 2) 个体推算 = 平均周期 - 平均卵泡期 - 平均经期
+  //    排除 follicularLen = 0 的周期（最后一次月经还没下次月经数据，无卵泡期长度）
+  if (periodMeans && periodMeans.length >= 3) {
+    const valid = periodMeans.filter(p => p.follicularLen > 0);
+    if (valid.length === 0) return DEFAULT_LUTEAL_LENGTH;
+    const meanBleed = valid.reduce((s, p) => s + p.length, 0) / valid.length;
+    const meanFoll = valid.reduce((s, p) => s + p.follicularLen, 0) / valid.length;
+    let luteal = avgCycle - meanFoll - meanBleed;
+    luteal = Math.max(10, Math.min(16, Math.round(luteal)));
+    return luteal;
+  }
+  // 3) 默认
+  return DEFAULT_LUTEAL_LENGTH;
+}
+
+// ===== 识别所有 periodStart =====
+function identifyPeriodStarts(allRecords) {
+  const sorted = [...allRecords].sort((a, b) => a.date.localeCompare(b.date));
+  const result = [];
+  let lastBleedEndIdx = -PERIOD_START_GAP - 1;  // 强制触发第一次
+  for (let i = 0; i < sorted.length; i++) {
+    const r = sorted[i];
+    const isBleed = r.bleeding && r.bleeding !== '无';
+    if (!isBleed) continue;
+    // 检查距上次出血结束是否 ≥ 7 天
+    let noBleedDays = 0;
+    for (let j = i - 1; j >= 0 && j > i - 30; j--) {
+      const prev = sorted[j];
+      if (prev.bleeding && prev.bleeding !== '无') break;
+      noBleedDays++;
+      if (noBleedDays >= PERIOD_START_GAP) break;
+    }
+    if (i - lastBleedEndIdx > PERIOD_START_GAP) {
+      result.push({ date: r.date, idx: i });
+      // 找该段结束：往后首次无出血的前一天
+      let endIdx = i;
+      for (let j = i + 1; j < sorted.length; j++) {
+        if (sorted[j].bleeding && sorted[j].bleeding !== '无') endIdx = j;
+        else break;
+      }
+      lastBleedEndIdx = endIdx;
+    }
+  }
+  // 同时返回每段经期长度 + 卵泡期长度
+  result.forEach((p, k) => {
+    let endIdx = p.idx;
+    for (let j = p.idx + 1; j < sorted.length; j++) {
+      if (sorted[j].bleeding && sorted[j].bleeding !== '无') endIdx = j;
+      else break;
+    }
+    p.length = endIdx - p.idx + 1;
+    p.endDate = sorted[endIdx].date;
+    // 卵泡期 = 经期结束 → 下次 periodStart（不含本次）
+    if (k + 1 < result.length) {
+      const nextStart = new Date(result[k + 1].date);
+      const endD = new Date(p.endDate);
+      p.follicularLen = Math.round((nextStart - endD) / 86400000) - 1;
+      if (p.follicularLen < 0) p.follicularLen = 0;
+    } else {
+      p.follicularLen = 0;
+    }
+  });
+  return result;
+}
+
+function daysBetween(d1, d2) {
+  return Math.round((new Date(d2) - new Date(d1)) / 86400000);
+}
+function dateAdd(date, n) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+// ===== 核心：determineCyclePhasesV2 返回 {date: {phase, source}} =====
+function determineCyclePhasesV2(allRecords) {
+  const sorted = [...allRecords].sort((a, b) => a.date.localeCompare(b.date));
+  const result = {};
+  const periods = identifyPeriodStarts(allRecords);
+  const { averageCycleLength } = estimateAverageCycleLength(allRecords);
+  const periodMeans = periods.map(p => ({ length: p.length, follicularLen: p.follicularLen }));
+  const luteal = estimateLutealLength(allRecords, averageCycleLength, periodMeans);
+
+  // 对每两个相邻 periodStart 之间的"完整周期"，全部标记 actual
+  // 对最新 periodStart 之后的"当前周期"，预测到 nextPredicted + 3 天
+  const lastStart = periods[periods.length - 1];
+  const lastPeriodEnd = lastStart ? lastStart.endDate : null;
+
+  for (let i = 0; i < sorted.length; i++) {
+    const r = sorted[i];
+    const date = r.date;
+    let phase = '未知';
+    let source = 'unknown';
+
+    // 1) 经期：出血非无 → actual
+    if (r.bleeding && r.bleeding !== '无') {
+      phase = '经期';
+      source = 'actual';
+      result[date] = { phase, source };
+      continue;
+    }
+
+    // 2) 找出当前日期落在哪两个 periodStart 之间
+    const containingPeriod = periods.find(p => date >= p.date && date <= p.endDate);
+    if (containingPeriod) {
+      result[date] = { phase: '经期', source: 'actual' };
+      continue;
+    }
+    // 完整周期内：上一个 periodEnd < date < 下一个 periodStart
+    let inCompleteCycle = null;
+    for (let k = 0; k < periods.length - 1; k++) {
+      const pStart = periods[k];
+      const pEnd = pStart.endDate;
+      const nextStart = periods[k + 1].date;
+      if (date > pEnd && date < nextStart) {
+        inCompleteCycle = { pStart, pEnd, nextStart };
+        break;
+      }
+    }
+    if (inCompleteCycle) {
+      // actual 回溯：基于下一次实际月经反推
+      const ovulation = dateAdd(new Date(inCompleteCycle.nextStart), -14);  // ovulation = nextStart - luteal
+      const ovStart = dateAdd(new Date(ovulation), -OVULATION_WINDOW);
+      const ovEnd = dateAdd(new Date(ovulation), OVULATION_WINDOW);
+      if (date >= ovStart && date <= ovEnd) {
+        result[date] = { phase: '排卵期', source: 'actual' };
+      } else if (date > ovEnd && date < inCompleteCycle.nextStart) {
+        result[date] = { phase: '黄体期', source: 'actual' };
+      } else if (date > inCompleteCycle.pEnd && date < ovStart) {
+        result[date] = { phase: '卵泡期', source: 'actual' };
+      } else {
+        result[date] = { phase: '未知', source: 'unknown' };
+      }
+      continue;
+    }
+
+    // 3) 当前正在进行的周期（最近一次 periodStart 之后）：正向预测
+    if (lastStart && date > lastStart.endDate) {
+      const anchor = lastStart.date;
+      const nextPredicted = dateAdd(new Date(anchor), averageCycleLength);
+      const cutoff = dateAdd(new Date(nextPredicted), CYCLE_BUFFER_DAYS);
+      // 超出 cutoff → 未知
+      if (date > cutoff) {
+        result[date] = { phase: '未知', source: 'unknown' };
+        continue;
+      }
+      const ovulation = dateAdd(new Date(nextPredicted), -luteal);
+      const ovStart = dateAdd(new Date(ovulation), -OVULATION_WINDOW);
+      const ovEnd = dateAdd(new Date(ovulation), OVULATION_WINDOW);
+      if (date >= ovStart && date <= ovEnd) {
+        result[date] = { phase: '排卵期', source: 'predicted' };
+      } else if (date > ovEnd && date <= nextPredicted) {
+        result[date] = { phase: '黄体期', source: 'predicted' };
+      } else if (date > lastStart.endDate && date < ovStart) {
+        result[date] = { phase: '卵泡期', source: 'predicted' };
+      } else if (date > nextPredicted && date <= cutoff) {
+        result[date] = { phase: '黄体期', source: 'predicted' };  // 缓冲期
+      } else {
+        result[date] = { phase: '未知', source: 'unknown' };
+      }
+      continue;
+    }
+
+    // 4) 其他情况（无 anchor 或 anchor 之前）→ 未知
+    result[date] = { phase: '未知', source: 'unknown' };
+  }
+  return result;
+}
+
+// ===== 展示层：computeFinalPhase =====
+function computeFinalPhase(record) {
+  // 1) 手动标记优先
+  if (record.manualCyclePhase) {
+    return { cyclePhase: record.manualCyclePhase, phaseSource: 'manual', phaseConfirmed: true };
+  }
+  // 2) actual
+  if (record.phaseSource === 'actual') {
+    return { cyclePhase: record.autoCyclePhase || '未知', phaseSource: 'actual', phaseConfirmed: true };
+  }
+  // 3) predicted
+  if (record.phaseSource === 'predicted' && record.autoCyclePhase && record.autoCyclePhase !== '未知') {
+    return { cyclePhase: record.autoCyclePhase, phaseSource: 'predicted', phaseConfirmed: false };
+  }
+  // 4) 未知
+  return { cyclePhase: '未知', phaseSource: 'unknown', phaseConfirmed: false };
+}
+
+// ===== 全量重算 + 写回 records =====
+function recomputeAllPhases() {
+  if (!records || records.length === 0) return;
+  const phaseMap = determineCyclePhasesV2(records);
+  let changed = false;
+  records.forEach(r => {
+    const info = phaseMap[r.date] || { phase: '未知', source: 'unknown' };
+    if (r.autoCyclePhase !== info.phase) { r.autoCyclePhase = info.phase; changed = true; }
+    if (r.phaseSource !== info.source) { r.phaseSource = info.source; changed = true; }
+    const final = computeFinalPhase(r);
+    if (r.cyclePhase !== final.cyclePhase) { r.cyclePhase = final.cyclePhase; changed = true; }
+    if (r.phaseConfirmed !== final.phaseConfirmed) { r.phaseConfirmed = final.phaseConfirmed; changed = true; }
+  });
+  if (changed) saveDataToStorage();
+  return changed;
+}
+
+// ===== 周期超长检测 =====
+function getCycleOverrunInfo() {
+  if (!records || records.length === 0) return null;
+  const periods = identifyPeriodStarts(records);
+  if (periods.length === 0) return null;
+  const lastStart = periods[periods.length - 1];
+  const { averageCycleLength, sampleCount, stdDev } = estimateAverageCycleLength(records);
+  const sorted = [...records].sort((a, b) => a.date.localeCompare(b.date));
+  const latestRecordDate = sorted[sorted.length - 1].date;
+  const daysSince = daysBetween(lastStart.date, latestRecordDate);
+  const threshold = averageCycleLength + 12;
+  if (daysSince > threshold) {
+    return {
+      overrun: true,
+      daysSince,
+      threshold,
+      averageCycleLength,
+      sampleCount,
+      stdDev,
+      anchor: lastStart.date,
+    };
+  }
+  return null;
+}
+function renderCycleOverrunBanner() {
+  const slot = document.getElementById('cycle-warning-slot');
+  if (!slot) return;
+  const info = getCycleOverrunInfo();
+  if (!info) { slot.innerHTML = ''; return; }
+  const err = info.daysSince - info.averageCycleLength;
+  slot.innerHTML = `<div class="cycle-warning-banner">
+    ⚠️ 你的当前周期已超过平均长度 <b>${info.averageCycleLength} 天</b>（实际 <b>${info.daysSince} 天</b>，超出 ${err} 天）。<br>
+    可能已进入新周期，请记录出血情况以确认。
+  </div>`;
+}
+
+// ===== 兼容旧接口：getCyclePhase（保留）=====
 function getCyclePhase(dateStr) {
-  const phaseMap = determineCyclePhases(records);
-  return phaseMap[dateStr] || '未知';
+  const r = records.find(r => r.date === dateStr);
+  return r ? (r.cyclePhase || '未知') : '未知';
+}
+
+// ===== Modal 交互 =====
+let _cycleModalDate = null;
+function openCycleModal(dateStr) {
+  _cycleModalDate = dateStr;
+  const r = records.find(r => r.date === dateStr);
+  if (!r) return;
+  const final = computeFinalPhase(r);
+  const line = document.getElementById('cm-phase-line');
+  const meta = document.getElementById('cm-phase-meta');
+  let sourceLabel = '';
+  if (final.phaseSource === 'actual') sourceLabel = '<span style="color:var(--accent2);">（已确认）</span>';
+  else if (final.phaseSource === 'predicted') sourceLabel = '<span style="color:var(--warn);">（预测）</span>';
+  else if (final.phaseSource === 'manual') sourceLabel = '<span style="color:var(--accent);">（手动标记）</span>';
+  line.innerHTML = `当前阶段：<b>${final.cyclePhase}</b>${sourceLabel}`;
+  // 元信息
+  const { averageCycleLength, stdDev } = estimateAverageCycleLength(records);
+  const luteal = estimateLutealLength(records, averageCycleLength);
+  const periods = identifyPeriodStarts(records);
+  let metaParts = [];
+  if (final.phaseSource === 'predicted') {
+    metaParts.push(`基于你的平均周期 ${averageCycleLength} 天预测（可能误差 ±${stdDev || 3} 天）`);
+    const lastStart = periods[periods.length - 1];
+    if (lastStart) {
+      const nextPred = dateAdd(new Date(lastStart.date), averageCycleLength);
+      const remain = daysBetween(dateStr, nextPred);
+      if (remain >= 0) metaParts.push(`预计结束日：${remain} 天后`);
+    }
+  } else if (final.phaseSource === 'actual') {
+    metaParts.push('来源：基于实际月经数据回溯');
+  } else if (final.phaseSource === 'manual') {
+    metaParts.push('来源：你手动修正');
+  }
+  if (r.manualCyclePhase) metaParts.push(`当前手动标记：${r.manualCyclePhase}`);
+  meta.innerHTML = metaParts.join('<br>');
+  // select 初始化
+  const sel = document.getElementById('cm-manual-select');
+  sel.value = r.manualCyclePhase || '';
+  document.getElementById('cycle-modal-overlay').classList.add('show');
+}
+function closeCycleModal() {
+  document.getElementById('cycle-modal-overlay').classList.remove('show');
+  _cycleModalDate = null;
+}
+function applyManualPhase() {
+  if (!_cycleModalDate) return;
+  const r = records.find(r => r.date === _cycleModalDate);
+  if (!r) return;
+  const sel = document.getElementById('cm-manual-select');
+  const val = sel.value;
+  r.manualCyclePhase = val;
+  const final = computeFinalPhase(r);
+  r.cyclePhase = final.cyclePhase;
+  r.phaseSource = final.phaseSource;
+  r.phaseConfirmed = final.phaseConfirmed;
+  saveDataToStorage();
+  closeCycleModal();
+  updateCycleDisplay(_cycleModalDate);
+  renderHistory();
+  if (typeof renderWeightTrendChart === 'function') renderWeightTrendChart();
+  // 联动洞察 / 规则引擎：当前激活 Tab 若依赖 cyclePhase 则重算
+  const activeTab = document.querySelector('.tab-button.active')?.id || document.querySelector('button.active[id^="tab-"]')?.id || '';
+  if (activeTab === 'tab-insights') {
+    if (typeof runFactorAnalysis === 'function') runFactorAnalysis();
+  } else if (activeTab === 'tab-rules') {
+    if (typeof renderRules === 'function') renderRules();
+  }
+  showSaveStatus('✅ 已修正 ' + _cycleModalDate + ' 的周期阶段');
 }
 
 // ============================================================
@@ -1609,17 +2036,20 @@ function saveRecord() {
   // 派生因子 = 文本关键词解析 + 结构化字段派生
   record.derivedFactors = computeDerivedFactors(record);
 
-  // Update cycle phase
-  record.cyclePhase = getCyclePhase(date);
-
   // Replace or add
   const idx = records.findIndex(r => r.date === date);
-  if (idx >= 0) records[idx] = record;
-  else { records.push(record); records.sort((a,b) => a.date.localeCompare(b.date)); }
+  if (idx >= 0) {
+    // 保留旧记录的 manualCyclePhase
+    record.manualCyclePhase = records[idx].manualCyclePhase || '';
+    Object.assign(records[idx], record);
+  } else {
+    record.manualCyclePhase = '';
+    records.push(record);
+    records.sort((a,b) => a.date.localeCompare(b.date));
+  }
 
-  // Recalculate all cycle phases
-  const phaseMap = determineCyclePhases(records);
-  records.forEach(r => r.cyclePhase = phaseMap[r.date] || '未知');
+  // V2：重算所有记录的周期阶段（autoCyclePhase / phaseSource / cyclePhase / phaseConfirmed）
+  recomputeAllPhases();
 
   saveDataToStorage();
   showSaveStatus('✅ 已保存 ' + date + ' 的记录');
@@ -1657,10 +2087,34 @@ function update7DayAverages(date) {
 }
 
 function updateCycleDisplay(date) {
-  const phase = getCyclePhase(date);
-  const el = document.getElementById('cycle-display');
-  el.textContent = `周期：${phase || '未知'}`;
-  el.className = `cycle-badge cycle-${phase || '未知'}`;
+  const r = records.find(r => r.date === date);
+  // 两处徽章（日期栏 + 生理周期模块）共用同一逻辑
+  const els = document.querySelectorAll('#cycle-display, #cycle-display-phase');
+  if (els.length === 0) return;
+  els.forEach(el => {
+    if (!r) { el.textContent = '未知'; el.className = 'cycle-badge cycle-未知 cycle-unknown'; el.removeAttribute('data-date'); el.onclick = null; return; }
+    const phase = r.cyclePhase || '未知';
+    const source = r.phaseSource || 'unknown';
+    // 视觉：已确认（actual/manual）= 实心；预测 = 浅色虚线；未知 = 灰
+    let visual = '';
+    let textExtra = '';
+    if (source === 'actual' || source === 'manual') {
+      visual = 'cycle-confirmed';
+    } else if (source === 'predicted') {
+      visual = 'cycle-predicted';
+      textExtra = ' <span class="phase-source-tag">· 预测</span>';
+    }
+    el.className = `cycle-badge cycle-${phase} ${visual}`;
+    const displayText = (phase === '未知') ? '未知' : `${phase}${textExtra}`;
+    el.innerHTML = displayText;
+    el.setAttribute('data-date', date);
+    if (phase === '未知') {
+      el.onclick = null;
+    } else {
+      el.onclick = () => openCycleModal(date);
+    }
+  });
+  renderCycleOverrunBanner();
 }
 
 // ============================================================
@@ -1746,7 +2200,15 @@ function renderHistory() {
     const isTarget = selectedHistoryDate === r.date;
     return `<tr class="${isTarget?'target-row':''}" onclick="selectHistoryDate('${r.date}')">
       <td>${r.date}</td>
-      <td><span class="cycle-badge cycle-${r.cyclePhase||'未知'}" style="font-size:10px;padding:2px 6px;">${r.cyclePhase||'?'}</span></td>
+      <td>${(() => {
+        const p = r.cyclePhase || '未知';
+        const src = r.phaseSource || 'unknown';
+        let visual = '';
+        let tag = '';
+        if (src === 'actual' || src === 'manual') visual = 'cycle-confirmed';
+        else if (src === 'predicted') { visual = 'cycle-predicted'; tag = ' ·预测'; }
+        return `<span class="cycle-badge cycle-${p} ${visual} table-badge" ${src==='unknown'?'':`onclick="event.stopPropagation();openCycleModal('${r.date}')"`}>${p}${tag}</span>`;
+      })()}</td>
       <td style="font-weight:700;color:${weightDelta>0?'var(--danger)':weightDelta<0?'var(--accent2)':'var(--text)'}">${weightDelta>=0?'+':''}${weightDelta}</td>
       <td>${r.bleeding||'-'}</td>
       <td>${r.carb||'-'}</td>
@@ -1886,11 +2348,13 @@ function renderWeightTrendChart() {
 
   const cycleColors = sorted.map(r => {
     const p = r.cyclePhase;
-    if (p === '经期') return 'rgba(240,101,101,0.3)';
-    if (p === '卵泡期') return 'rgba(77,212,172,0.3)';
-    if (p === '排卵期') return 'rgba(240,160,80,0.3)';
-    if (p === '黄体期') return 'rgba(124,92,252,0.3)';
-    return 'rgba(146,152,168,0.1)';
+    const src = r.phaseSource || 'unknown';
+    const alpha = (src === 'actual' || src === 'manual') ? 0.85 : (src === 'predicted' ? 0.35 : 0.15);
+    if (p === '经期') return `rgba(240,101,101,${alpha})`;
+    if (p === '卵泡期') return `rgba(77,212,172,${alpha})`;
+    if (p === '排卵期') return `rgba(240,160,80,${alpha})`;
+    if (p === '黄体期') return `rgba(124,92,252,${alpha})`;
+    return `rgba(146,152,168,${Math.min(alpha, 0.3)})`;
   });
 
   charts.weightTrend = new Chart(ctx, {
@@ -1905,7 +2369,7 @@ function renderWeightTrendChart() {
         fill: true,
         tension: 0.3,
         pointRadius: 5,
-        pointBackgroundColor: cycleColors.map(c => c.replace('0.3','0.8').replace('0.1','0.3')),
+        pointBackgroundColor: cycleColors,
       }]
     },
     options: {
@@ -2550,11 +3014,18 @@ function runFactorAnalysis() {
   rows.sort((a,b) => Math.abs(b.r) - Math.abs(a.r));
 
   // 配对数 = filtered.length（每条 aligned 记录已成功计算 Y，且 X 来自 prev）
-  // 注入排除列表供渲染使用
-  renderFactorAnalysisTable(rows, filtered.length, targetKey, [...excluded]);
+  // 注入排除列表 + 样本来源统计供渲染使用
+  const sourceStats = filtered.reduce((acc, r) => {
+    const src = r.phaseSource || 'unknown';
+    if (src === 'actual' || src === 'manual') acc.confirmed++;
+    else if (src === 'predicted') acc.predicted++;
+    else acc.unknown++;
+    return acc;
+  }, { confirmed: 0, predicted: 0, unknown: 0 });
+  renderFactorAnalysisTable(rows, filtered.length, targetKey, [...excluded], sourceStats);
 }
 
-function renderFactorAnalysisTable(rows, filteredN, targetKey, excludedKeys=[]) {
+function renderFactorAnalysisTable(rows, filteredN, targetKey, excludedKeys=[], sourceStats=null) {
   const tbody = document.querySelector('#factor-analysis-table tbody');
   if (!tbody) return;
   const yLabel = TARGET_VARS[targetKey].label;
@@ -2572,10 +3043,25 @@ function renderFactorAnalysisTable(rows, filteredN, targetKey, excludedKeys=[]) 
   let excludeHint = '';
   if (excludedKeys.length > 0) {
     const names = excludedKeys.map(k => MAIN_FACTORS[k]?.label).filter(Boolean).join(' / ');
-    excludeHint = ` ｜ <span style="color:var(--warn);font-size:11px;">已自动排除自相关因子：${names}</span>`;
+    excludeHint = ` ｜ <span style="color:var(--warn);font-size:11px;">已自动隐藏自相关因子：${names}</span>`;
   }
   document.getElementById('analysis-sample-info').innerHTML =
     `目标变量：<b style="color:var(--accent);">${yLabel}</b> ｜ 样本：${sampleNote}${excludeHint}`;
+
+  // 样本来源拆分提示
+  const srcBox = document.getElementById('analysis-source-info');
+  if (srcBox && sourceStats) {
+    const total = sourceStats.confirmed + sourceStats.predicted + sourceStats.unknown;
+    if (total > 0) {
+      const predPct = total > 0 ? (sourceStats.predicted / total * 100) : 0;
+      const warnClass = predPct > 50 ? 'warn' : '';
+      srcBox.innerHTML = `<div class="sample-source-info ${warnClass}">
+        有效样本：<b style="color:var(--accent2);">${sourceStats.confirmed}</b> 条（已确认）｜ 预测样本：<b style="color:var(--warn);">${sourceStats.predicted}</b> 条${predPct > 50 ? ' ｜ ⚠️ 预测占比 ' + Math.round(predPct) + '%，准确性可能低于已确认' : ''}
+      </div>`;
+    } else {
+      srcBox.innerHTML = '';
+    }
+  }
 
   if (rows.length === 0) {
     tbody.innerHTML = '<tr><td colspan="5" style="color:var(--text-dim);padding:16px;">当前筛选条件下样本不足以计算任何相关性</td></tr>';
@@ -2796,6 +3282,14 @@ function generateRules() {
       if (subset.length < RULE_MIN_N) return;
       // 主因子（X 取自前日 prev，统一反向 lag-1 口径；并剔除自相关）
       const excluded = new Set(TARGET_EXCLUDE_FACTORS[targetKey] || []);
+      // 统计子集预测样本占比
+      const srcCounts = subset.reduce((acc, r) => {
+        const s = r.phaseSource || 'unknown';
+        if (s === 'predicted') acc.pred++;
+        else if (s === 'actual' || s === 'manual') acc.conf++;
+        return acc;
+      }, { pred: 0, conf: 0 });
+      const predPct = (srcCounts.pred + srcCounts.conf) > 0 ? srcCounts.pred / (srcCounts.pred + srcCounts.conf) : 0;
       Object.entries(MAIN_FACTORS).forEach(([XKey, XMeta]) => {
         if (excluded.has(XKey)) return;
         const pairs = subset.map(r => [getMainFactorValue(r._prev || r, XKey), r._y]).filter(p => p[0] != null && p[1] != null);
@@ -2805,7 +3299,7 @@ function generateRules() {
         const meanY = pairs.reduce((s,p)=>s+p[1],0) / pairs.length;
         const sci = SCI_EVIDENCE[XKey] != null ? SCI_EVIDENCE[XKey] : 0.5;
         const score = computeConfScore(r, pairs.length, sci);
-        rules.push({ M: MKey, mv, X: XKey, XLabel: XMeta.label, r, n: pairs.length, meanY, score, sci });
+        rules.push({ M: MKey, mv, X: XKey, XLabel: XMeta.label, r, n: pairs.length, meanY, score, sci, predPct });
       });
       // 派生因子（X 也从 prev 取，保持口径一致）
       DERIVED_FACTOR_LIST.forEach(dk => {
@@ -2822,7 +3316,7 @@ function generateRules() {
         if (r == null || !Number.isFinite(r) || Math.abs(r) < RULE_MIN_ABS_R) return;
         const sci = SCI_EVIDENCE[dk] != null ? SCI_EVIDENCE[dk] : 0.5;
         const score = computeConfScore(r, pairs.length, sci);
-        rules.push({ M: MKey, mv, X: dk, XLabel: dk, isDerived: true, r, n: pairs.length, meanY: meanIn, meanDiff: diff, score, sci });
+        rules.push({ M: MKey, mv, X: dk, XLabel: dk, isDerived: true, r, n: pairs.length, meanY: meanIn, meanDiff: diff, score, sci, predPct });
       });
     });
   });
@@ -2846,18 +3340,24 @@ function recentBaseline(field) {
   return { mean, std, n: vals.length };
 }
 
-// 周期阶段：预测未来 2-3 天的阶段
+// 周期阶段：基于 V2 算法预测未来 N 天的阶段（含误差估计）
 function forecastCyclePhase(daysAhead) {
   if (records.length === 0) return null;
   const sorted = [...records].sort((a,b) => a.date.localeCompare(b.date));
   const last = sorted[sorted.length - 1];
-  if (!last.cyclePhase) return null;
-  // 简单推断：基于当前阶段 + 推断下个阶段
-  const phaseSeq = ['经期', '卵泡期', '排卵期', '黄体期'];
-  const lastIdx = phaseSeq.indexOf(last.cyclePhase);
-  if (lastIdx < 0) return null;
-  const targetIdx = (lastIdx + daysAhead) % phaseSeq.length;
-  return phaseSeq[targetIdx];
+  if (!last) return null;
+  // 在 V2 算法的虚拟时间轴里预测（不写回 records）
+  const virtual = [...records, { date: dateAdd(last.date, daysAhead), bleeding: '无', _virtual: true }];
+  const phaseMap = determineCyclePhasesV2(virtual);
+  const target = dateAdd(last.date, daysAhead);
+  const info = phaseMap[target];
+  const { averageCycleLength, stdDev } = estimateAverageCycleLength(records);
+  return {
+    phase: info ? info.phase : '未知',
+    source: info ? info.source : 'unknown',
+    averageCycleLength,
+    stdDev,
+  };
 }
 
 function renderAdviceV2(rules) {
@@ -2890,15 +3390,16 @@ function renderAdviceV2(rules) {
 
   // ── 周期前瞻（蓝）──
   for (let d = 1; d <= 3; d++) {
-    const futurePhase = forecastCyclePhase(d);
-    if (!futurePhase || futurePhase === latest.cyclePhase) continue;
+    const fc = forecastCyclePhase(d);
+    if (!fc || fc.phase === '未知' || fc.phase === latest.cyclePhase) continue;
     // 历史在该阶段的样本
-    const histAtPhase = records.filter(r => r.cyclePhase === futurePhase && r.weight != null);
+    const histAtPhase = records.filter(r => r.cyclePhase === fc.phase && r.weight != null);
     const histDesc = histAtPhase.length > 0 ? `你历史在该阶段共 ${histAtPhase.length} 天` : '该阶段暂无历史样本';
+    const errStr = fc.stdDev > 0 ? `±${fc.stdDev}` : '±3';
     advices.push({
       level: 'cycle',
-      title: `🔵 ${d} 天后将进入：${futurePhase}`,
-      body: `当前处于${latest.cyclePhase || '未知'}，预计 ${d} 天后进入「${futurePhase}」。${histDesc}，建议提前安排作息。`,
+      title: `🔵 ${d} 天后将进入：${fc.phase}`,
+      body: `当前处于${latest.cyclePhase || '未知'}，预计 ${d} 天后进入「${fc.phase}」（基于平均周期 ${fc.averageCycleLength} 天，可能误差 ${errStr} 天）。${histDesc}，建议提前安排作息。`,
     });
     break;   // 只提示最近一次
   }
@@ -3136,12 +3637,16 @@ function renderAutoRulesV2(rules) {
     const dirColor = c.r > 0 ? 'var(--accent2)' : 'var(--danger)';
     const Y = c.r > 0 ? '+' : '';
     const meanYAbs = Math.abs(c.meanY).toFixed(2);
+    const note = (c.predPct != null && c.predPct > 0.5)
+      ? `<div style="margin-top:4px;font-size:11px;color:var(--warn);">注：该结论基于预测阶段样本（占比 ${Math.round(c.predPct * 100)}%），准确性可能有限。</div>`
+      : '';
     return `<div class="rule-item">
       <div class="rule-head">
         <span class="rule-cond"><b>核心：</b>${MODERATORS[c.M].label} = ${mvLabel(c.M, c.mv)} <b>｜</b> <b>修饰：</b>${c.isDerived ? '🏷' : ''}${c.XLabel}</span>
         <span class="rule-score">置信度：${sl} ${c.score}/100</span>
       </div>
       <div class="rule-then" style="color:${dirColor};">→ ${yLabel}平均 ${dirSign(c.r)} ${Y}${meanYAbs}（r=${c.r.toFixed(2)}，n=${c.n}）</div>
+      ${note}
     </div>`;
   }).join('');
 }
@@ -3199,7 +3704,7 @@ function exportData() {
 
 // --- CSV 导出 ---
 // 列顺序：29 列，覆盖所有 record 字段
-const CSV_HEADERS = ['日期','周期','体重kg','体重Δ','出血','碳水','蛋白','钠','饮水杯','饮食备注','运动','运动时长min','睡眠h','睡质','情绪','精力','压力','压力备注','社交','认知','能量净值','活动备注','深度独处','心流活动','心流时长min','恢复评分','日常备注','内心笔记','派生因子'];
+const CSV_HEADERS = ['日期','周期','算法阶段','阶段来源','手动周期阶段','体重kg','体重Δ','出血','碳水','蛋白','钠','饮水杯','饮食备注','运动','运动时长min','睡眠h','睡质','情绪','精力','压力','压力备注','社交','认知','能量净值','活动备注','深度独处','心流活动','心流时长min','恢复评分','日常备注','内心笔记','派生因子'];
 
 // 把任意值转成 CSV 安全单元格字符串（RFC4180 + Excel 防公式）
 function csvEscape(val) {
@@ -3248,6 +3753,9 @@ function exportCSV() {
     const row = [
       r.date,
       r.cyclePhase || '未知',
+      r.autoCyclePhase || '未知',
+      r.phaseSource || 'unknown',
+      r.manualCyclePhase || '',
       r.weight != null ? r.weight : '',
       weightDelta,
       r.bleeding || '无',
@@ -3356,6 +3864,28 @@ function importCSV(text) {
     const rec = {
       date,
       cyclePhase: get(row, '周期') || '未知',
+      // V2 周期字段（按 Q1/Q6 回填）
+      autoCyclePhase: (function () {
+        const v = get(row, '算法阶段');
+        if (v) return v;
+        const fallback = get(row, '周期') || '未知';
+        return fallback || '未知';
+      })(),
+      phaseSource: (function () {
+        const v = get(row, '阶段来源');
+        if (v) return v;
+        // 回填规则：旧 CSV 缺此列，若 cyclePhase 非空 → actual，否则 unknown
+        const phase = get(row, '周期');
+        return phase ? 'actual' : 'unknown';
+      })(),
+      phaseConfirmed: (function () {
+        const src = get(row, '阶段来源');
+        if (src === 'actual' || src === 'manual') return true;
+        if (src === 'predicted' || src === 'unknown') return false;
+        // 回填：cyclePhase 非空 → actual → true
+        return !!(get(row, '周期'));
+      })(),
+      manualCyclePhase: get(row, '手动周期阶段') || '',
       weight: toNum(get(row, '体重kg')),
       bleeding: get(row, '出血') || '无',
       carb: get(row, '碳水'),
@@ -3403,8 +3933,7 @@ function importData(event) {
       if (looksCSV) {
         records = importCSV(text);
         saveDataToStorage();
-        const phaseMap = determineCyclePhases(records);
-        records.forEach(r => r.cyclePhase = phaseMap[r.date] || '未知');
+        recomputeAllPhases();   // V2 重算所有周期阶段
         saveDataToStorage();
         alert('导入成功！共 ' + records.length + ' 条记录（CSV）。');
       } else {
@@ -3416,8 +3945,7 @@ function importData(event) {
         if (data.keywords) {
           localStorage.setItem(KEYWORD_KEY, JSON.stringify(data.keywords));
         }
-        const phaseMap = determineCyclePhases(records);
-        records.forEach(r => r.cyclePhase = phaseMap[r.date] || '未知');
+        recomputeAllPhases();
         saveDataToStorage();
         alert('导入成功！共 ' + records.length + ' 条记录。');
       }
@@ -3437,9 +3965,11 @@ function importData(event) {
 //  INIT
 // ============================================================
 loadData();
-migrateAllRecords();   // 先归一化运动格式 + 重算派生因子（幂等）
+migrateAllRecords();   // 先归一化运动格式 + 重算派生因子 + V2 周期阶段（幂等）
 initForm();
 updateRecordCount();
+initCycleSettingsUI();   // 关于页：恢复已保存的周期设置
+// renderCycleOverrunBanner() 由 initForm() 内部调用，无需重复
 
 // ============================================================
 //  PWA REGISTRATION
